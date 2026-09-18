@@ -81,11 +81,12 @@ tr:hover td{background:#fafbff}
 <script src="https://fyedro.github.io/birras-app/data/cloud/part_3.js"></script>
 <script src="https://fyedro.github.io/birras-app/data/cloud/part_4.js"></script>
 <script src="https://fyedro.github.io/birras-app/data/cloud/part_5.js"></script>
+<script src="https://fyedro.github.io/birras-app/data/cloud/part_6.js"></script>
 
 <script>
 // -- Fetch polyfill for standalone BIRRAS --
 window.BIRRAS = BIRRAS_DATA;
-var SU = BIRRAS.su, AS = BIRRAS.as, TR = BIRRAS.tr, LI = BIRRAS.li;
+var SU = BIRRAS.su, AS = BIRRAS.as, TR = BIRRAS.tr, LI = BIRRAS.li, CE = BIRRAS.ce;
 
 function computeStats(curso) {
   var arr = curso ? SU.filter(function(s){return s.curso===curso}) : SU;
@@ -108,23 +109,29 @@ function filterListas(urlStr) {
   var q = (params.get('q')||'').toLowerCase();
   var curso = params.get('curso')||'', cuerpo = params.get('cuerpo')||'', esp = params.get('esp')||'';
   var lista = params.get('lista')||'', subtipo = params.get('subtipo')||'', hab = params.get('hab')||'';
-  var page = parseInt(params.get('page'))||1, ps = parseInt(params.get('pageSize'))||50;
+  var page = parseInt(params.get('page'))||1, ps = parseInt(params.get('pageSize'))||100;
   var filtered = LI.filter(function(r){
     if(curso && r.curso !== curso) return false;
-    if(cuerpo){var ck=r.codcuerpocfunc+' - '+(r.cuerpocfunc||'');if(ck!==cuerpo)return false}
-    if(esp){var ek=r.codespcfunc+' - '+(r.espcfunc||'');if(ek!==esp)return false}
+    if(cuerpo){var ck=r.codcuerpocfunc+' - '+(r._nom_cuerpo||r.cuerpocfunc||'');if(ck!==cuerpo)return false}
+    if(esp==='ZZ - MUSICA FUSION'){if(!(r.codcuerpocfunc==='0590'&&(r.codespcfunc==='016'||r.codespcfunc==='832')))return false}else if(esp){var ek=r.codespcfunc+' - '+(r.espcfunc||'');if(ek!==esp)return false}
     if(lista && r.tipolista!==lista) return false;
     if(subtipo && r.subtipo!==subtipo) return false;
     if(hab && r.habilitado!==hab) return false;
     if(q && !((r.papellid||'')+' '+(r.sapellid||'')+' '+(r.nombre||'')).toLowerCase().includes(q)) return false;
     return true;
   });
+  filtered.sort(function(a,b){
+    var ca=a.codcuerpocfunc||'', cb=b.codcuerpocfunc||''; if(ca!==cb) return ca<cb?-1:1;
+    var ea=a.codespcfunc||'', eb=b.codespcfunc||''; if(ea!==eb) return ea<eb?-1:1;
+    var la=parseInt(a.tipolista)||999, lb=parseInt(b.tipolista)||999; if(la!==lb) return la-lb;
+    var sa=parseInt(a.subtipo)||999, sb=parseInt(b.subtipo)||999; if(sa!==sb) return sa-sb;
+    var oa=parseInt(a.orden)||999999, ob=parseInt(b.orden)||999999; return oa-ob;
+  });
   var total = filtered.length;
   var start = (page-1)*ps;
   return {records:filtered.slice(start,Math.min(start+ps,total)), total:total, page:page, pageSize:ps};
 }
 
-// Override fetch
 var _origFetch = window.fetch;
 window.fetch = function(url, opts) {
   var u = typeof url === 'string' ? url : (url.url || url.href || '');
@@ -139,18 +146,22 @@ window.fetch = function(url, opts) {
   }
   if (u === '/api/asignacion?all=1') return Promise.resolve({json:function(){return Promise.resolve(AS)}});
   if (u === '/api/traslados?all=1') return Promise.resolve({json:function(){return Promise.resolve(TR)}});
-  if (u === '/api/listas-interinos/filters') return Promise.resolve({json:function(){return Promise.resolve({cuerpos:BIRRAS.lf.cu,especialidades:BIRRAS.lf.es.map(function(e){return{label:e.l,codCuerpo:e.c}}),cursos:BIRRAS.lf.cs})}});
+  if (u === '/api/listas-interinos/filters') {
+    var _esps = BIRRAS.lf.es.map(function(e){return{label:e.l,codCuerpo:e.c}});
+    if(_esps.some(function(e){return e.label.indexOf('016 - ')===0}) && _esps.some(function(e){return e.label.indexOf('832 - ')===0})) _esps.push({label:'ZZ - MUSICA FUSION', codCuerpo:'0590'});
+    return Promise.resolve({json:function(){return Promise.resolve({cuerpos:BIRRAS.lf.cu,especialidades:_esps,cursos:BIRRAS.lf.cs})}});
+  }
   if (u.indexOf('/api/listas-interinos?') === 0) return Promise.resolve({json:function(){return Promise.resolve(filterListas(u))}});
-  // For POST /api/refresh-sustituciones, return empty (no-op in standalone)
   if (u.indexOf('/api/refresh-sustituciones') >= 0) {
     var _cs2 = new URLSearchParams(u.split('?')[1]||'').get('curso')||'';
     return Promise.resolve({json:function(){return Promise.resolve({curso:_cs2,nuevos:0,total_actual:SU.length})}});
   }
+  if (u === '/api/centros') return Promise.resolve({json:function(){return Promise.resolve(CE)}});
+  if (u.indexOf('/api/publish') >= 0) return Promise.resolve({json:function(){return Promise.resolve({ok:false,message:'Solo disponible en local'})}});
+
   return _origFetch ? _origFetch(url, opts) : Promise.reject(new Error('fetch not available: '+u));
 };
-// Also add curso field to listas records (if not already present)
 LI.forEach(function(r){if(!r.curso)r.curso='2025-2026'});
-// Add dummy _tipo_label if missing from asignacion
 AS.forEach(function(r){if(!r._tipo_label){if(r.tipo==='definitiva_funcionarios')r._tipo_label='Funcionarios';else if(r.tipo==='definitiva_interinos')r._tipo_label='Interinos';else if(r.tipo==='extraordinaria_funcionarios')r._tipo_label='Extraord. Func.';else if(r.tipo==='extraordinaria_interinos')r._tipo_label='Extraord. Int.';}});
 </script>
 </head>
@@ -161,8 +172,7 @@ AS.forEach(function(r){if(!r._tipo_label){if(r.tipo==='definitiva_funcionarios')
     <p>Plataforma de Asignación de Docentes Interinos · Comunidad de Madrid</p>
   </div>
   <div class="header-right">
-    <button class="btn-export" onclick="buildHTMLStandalone()" id="btnExportHTML">📦 HTML standalone</button>
-    <button class="btn-export" onclick="buildStandalone()" id="btnExport">⬇ Exportar .dmg</button>
+    <button class="btn-export" onclick="publicarCloud()" id="btnPublish" style="background:#1b6b2d;color:#fff;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-size:.85rem;font-weight:600;font-family:'Inter',sans-serif">☁️ Publicar en nube</button>
   </div>
 </div>
 
@@ -1859,28 +1869,7 @@ function refreshInterinos() {
     });
 }
 
-function refreshSustituciones(){})
-    .then(r => r.json())
-    .then(res => {
-      const msg = res.nuevos > 0
-        ? '✅ ' + res.nuevos + ' nuevas sustituciones añadidas (' + res.curso + ', total: ' + res.total_actual + ')'
-        : 'ℹ️ Sin registros nuevos (' + res.curso + ', total: ' + res.total_actual + ')';
-      btn.textContent = msg;
-      setTimeout(() => { btn.textContent = '🔄 Actualizar'; btn.disabled = false; }, 3000);
-      // Reload data
-      fetch('/api/data').then(r => r.json()).then(data => {
-        allData = data;
-        buildCursoFilter();
-        buildFilters();
-        applyFilters();
-        renderStats();
-      });
-    })
-    .catch(() => {
-      btn.textContent = '❌ Error';
-      setTimeout(() => { btn.textContent = '🔄 Actualizar'; btn.disabled = false; }, 3000);
-    });
-}
+function refreshSustituciones(){}
 
 function fetchLiPage(page) {
   console.log('fetchLiPage called, page=' + page);
@@ -2113,50 +2102,20 @@ document.getElementById('fnNextPage').onclick = () => { if ((fnPage + 1) * FN_PA
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function formatDNI(d) { if (!d) return ''; var m = d.replace(/\D/g,'').slice(-4); return '****' + m + '*'; }
 
-function buildStandalone() {
-  var btn = document.getElementById('btnExport');
-  btn.disabled = true; btn.textContent = '⏳ Generando...';
-  fetch('/api/build-standalone', {method:'POST'})
-    .then(function(r){
-      if (!r.ok) return r.json().then(function(e){throw new Error(e.error)});
-      return r.blob();
-    })
-    .then(function(blob){
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement('a');
-      a.href = url; a.download = 'BIRRAS.dmg';
-      document.body.appendChild(a); a.click();
-      document.body.removeChild(a); URL.revokeObjectURL(url);
-      btn.disabled = false; btn.textContent = '✅ ¡Descargado!';
-      setTimeout(function(){ btn.textContent = '⬇ Exportar .dmg'; }, 3000);
+function publicarCloud() {
+  var btn = document.getElementById('btnPublish');
+  btn.disabled = true; btn.textContent = '⏳ Publicando...';
+  fetch('/api/publish', {method:'POST'})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      btn.disabled = false;
+      btn.textContent = d.ok ? ('✅ Publicado · ' + String(d.commit||'').slice(0,7)) : ('❌ ' + (d.message || 'Error'));
+      setTimeout(function(){ btn.textContent = '☁️ Publicar en nube'; }, 6000);
     })
     .catch(function(e){
       btn.disabled = false; btn.textContent = '❌ Error';
       console.error(e);
-      setTimeout(function(){ btn.textContent = '⬇ Exportar .dmg'; }, 3000);
-    });
-}
-function buildHTMLStandalone() {
-  var btn = document.getElementById('btnExportHTML');
-  btn.disabled = true; btn.textContent = '⏳ Generando...';
-  fetch('/api/build-html', {method:'POST'})
-    .then(function(r){
-      if (!r.ok) return r.json().then(function(e){throw new Error(e.error)});
-      return r.blob();
-    })
-    .then(function(blob){
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement('a');
-      a.href = url; a.download = 'BIRRAS.zip';
-      document.body.appendChild(a); a.click();
-      document.body.removeChild(a); URL.revokeObjectURL(url);
-      btn.disabled = false; btn.textContent = '✅ ¡Descargado!';
-      setTimeout(function(){ btn.textContent = '📦 HTML standalone'; }, 3000);
-    })
-    .catch(function(e){
-      btn.disabled = false; btn.textContent = '❌ Error';
-      console.error(e);
-      setTimeout(function(){ btn.textContent = '📦 HTML standalone'; }, 3000);
+      setTimeout(function(){ btn.textContent = '☁️ Publicar en nube'; }, 6000);
     });
 }
 function switchTab(name, btn) {
