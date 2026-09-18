@@ -162,8 +162,7 @@ window.fetch = function(url, opts) {
   if (u.indexOf('/api/publish') >= 0) return _p({ok:false,message:'Solo disponible en local'});
   return _origFetch ? _origFetch(url, opts) : Promise.reject(new Error('fetch not available: '+u));
 };
-try { var _h=document.getElementById('btnPublish'); if(_h) _h.style.display='none'; } catch(_e) {}
-try { var _h2=document.getElementById('btnRefreshLi'); if(_h2) _h2.style.display='none'; } catch(_e2) {}
+(function(){try{var _s=document.createElement('style');_s.type='text/css';_s.textContent='#btnPublish,#btnRefreshLi,button[onclick="refreshSustituciones()"]{display:none!important}';var _h=document.head||document.documentElement;if(_h)_h.appendChild(_s);}catch(_e){}})();
 LI.forEach(function(r){if(!r.curso)r.curso='2025-2026'});
 AS.forEach(function(r){if(!r._tipo_label){if(r.tipo==='definitiva_funcionarios')r._tipo_label='Funcionarios';else if(r.tipo==='definitiva_interinos')r._tipo_label='Interinos';else if(r.tipo==='extraordinaria_funcionarios')r._tipo_label='Extraord. Func.';else if(r.tipo==='extraordinaria_interinos')r._tipo_label='Extraord. Int.';}});
 </script>
