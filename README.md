@@ -11,7 +11,7 @@ Versión de consulta pública de BIRRAS desplegada en Streamlit Community Cloud
 - `BIRRAS.html` — dashboard standalone (interfaz + lógica, sin datos).
 - `data/cloud/part_*.js` — datos troceados por sentencias JS (< 80 MB por archivo,
   límite GitHub de 100 MB), que el navegador carga secuencialmente vía
-  `raw.githubusercontent.com`.
+  GitHub Pages (`fyedro.github.io/birras-app`), que sirve `.js` correctamente.
 
 ## Regenerar el bundle
 
