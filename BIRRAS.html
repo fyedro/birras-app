@@ -135,32 +135,35 @@ function filterListas(urlStr) {
 var _origFetch = window.fetch;
 window.fetch = function(url, opts) {
   var u = typeof url === 'string' ? url : (url.url || url.href || '');
-  if (u === '/api/data') return Promise.resolve({json:function(){return Promise.resolve(SU)}});
+  function _p(d) { return Promise.resolve({ok:true,status:200,statusText:'OK',json:function(){return Promise.resolve(d);}}); }
+  if (u === '/api/data') return _p(SU);
   if (u.indexOf('/api/stats') === 0) {
     var _cs = new URLSearchParams(u.split('?')[1]||'').get('curso')||'';
-    return Promise.resolve({json:function(){return Promise.resolve(computeStats(_cs))}});
+    return _p(computeStats(_cs));
   }
   if (u.indexOf('/api/suggest?') === 0) {
     var q = new URLSearchParams(u.split('?')[1]||'').get('q')||'';
-    return Promise.resolve({json:function(){return Promise.resolve(suggestResults(q))}});
+    return _p(suggestResults(q));
   }
-  if (u === '/api/asignacion?all=1') return Promise.resolve({json:function(){return Promise.resolve(AS)}});
-  if (u === '/api/traslados?all=1') return Promise.resolve({json:function(){return Promise.resolve(TR)}});
+  if (u === '/api/asignacion?all=1') return _p(AS);
+  if (u === '/api/traslados?all=1') return _p(TR);
   if (u === '/api/listas-interinos/filters') {
     var _esps = BIRRAS.lf.es.map(function(e){return{label:e.l,codCuerpo:e.c}});
     if(_esps.some(function(e){return e.label.indexOf('016 - ')===0}) && _esps.some(function(e){return e.label.indexOf('832 - ')===0})) _esps.push({label:'ZZ - MUSICA FUSION', codCuerpo:'0590'});
-    return Promise.resolve({json:function(){return Promise.resolve({cuerpos:BIRRAS.lf.cu,especialidades:_esps,cursos:BIRRAS.lf.cs})}});
+    return _p({cuerpos:BIRRAS.lf.cu,especialidades:_esps,cursos:BIRRAS.lf.cs});
   }
-  if (u.indexOf('/api/listas-interinos?') === 0) return Promise.resolve({json:function(){return Promise.resolve(filterListas(u))}});
+  if (u.indexOf('/api/listas-interinos?') === 0) return _p(filterListas(u));
   if (u.indexOf('/api/refresh-sustituciones') >= 0) {
     var _cs2 = new URLSearchParams(u.split('?')[1]||'').get('curso')||'';
-    return Promise.resolve({json:function(){return Promise.resolve({curso:_cs2,nuevos:0,total_actual:SU.length})}});
+    return _p({curso:_cs2,nuevos:0,total_actual:SU.length});
   }
-  if (u === '/api/centros') return Promise.resolve({json:function(){return Promise.resolve(CE)}});
-  if (u.indexOf('/api/publish') >= 0) return Promise.resolve({json:function(){return Promise.resolve({ok:false,message:'Solo disponible en local'})}});
-
+  if (u.indexOf('/api/refresh-interinos') >= 0) return _p({curso:'',nuevos:0,total:LI.length});
+  if (u === '/api/centros') return _p(CE);
+  if (u.indexOf('/api/publish') >= 0) return _p({ok:false,message:'Solo disponible en local'});
   return _origFetch ? _origFetch(url, opts) : Promise.reject(new Error('fetch not available: '+u));
 };
+try { var _h=document.getElementById('btnPublish'); if(_h) _h.style.display='none'; } catch(_e) {}
+try { var _h2=document.getElementById('btnRefreshLi'); if(_h2) _h2.style.display='none'; } catch(_e2) {}
 LI.forEach(function(r){if(!r.curso)r.curso='2025-2026'});
 AS.forEach(function(r){if(!r._tipo_label){if(r.tipo==='definitiva_funcionarios')r._tipo_label='Funcionarios';else if(r.tipo==='definitiva_interinos')r._tipo_label='Interinos';else if(r.tipo==='extraordinaria_funcionarios')r._tipo_label='Extraord. Func.';else if(r.tipo==='extraordinaria_interinos')r._tipo_label='Extraord. Int.';}});
 </script>
