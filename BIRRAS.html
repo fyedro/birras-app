@@ -1,0 +1,2236 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BIRRAS — Base de Interinos y Registro de Relevos, Asignaciones y Sustituciones</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz@14..32&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#f4f6f9;color:#1a1a2e;padding:20px}
+.header{background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);color:#fff;border-radius:12px;padding:24px 32px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center}
+.header h1{font-size:1.6rem;font-weight:600}
+.header p{color:#a8b2d1;font-size:.9rem;margin-top:4px}
+.header-right{display:flex;align-items:center;gap:12px}
+.btn-export{background:#fff;color:#0f3460;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-size:.85rem;font-weight:600;font-family:'Inter',sans-serif;transition:all .15s}
+.btn-export:hover{background:#eef2ff}
+.tabs{display:flex;gap:4px;margin-bottom:20px;background:#fff;border-radius:10px;padding:4px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.tab{padding:10px 20px;border-radius:8px;border:none;cursor:pointer;font-size:.85rem;font-weight:500;font-family:'Inter',sans-serif;background:transparent;color:#6b7280;transition:all .15s}
+.tab:hover{background:#f3f4f6}
+.tab.active{background:#0f3460;color:#fff}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:24px}
+.stat-card{background:#fff;border-radius:10px;padding:18px 20px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.stat-card .label{font-size:.75rem;text-transform:uppercase;letter-spacing:.5px;color:#6b7280}
+.stat-card .value{font-size:1.5rem;font-weight:700;margin-top:4px;color:#1a1a2e}
+.search-section{background:#fff;border-radius:10px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-bottom:20px}
+.search-row{display:flex;gap:12px;flex-wrap:wrap;align-items:end}
+.search-group{flex:1;min-width:180px}
+.search-group label{display:block;font-size:.8rem;font-weight:600;color:#374151;margin-bottom:4px}
+.search-group input,.search-group select{width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem;font-family:'Inter',sans-serif;background:#fff;transition:border-color .15s}
+.search-group input:focus,.search-group select:focus{outline:none;border-color:#0f3460;box-shadow:0 0 0 3px rgba(15,52,96,.12)}
+.suggestions{position:relative}
+.suggestions-list{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #d1d5db;border-top:none;border-radius:0 0 8px 8px;max-height:280px;overflow-y:auto;z-index:100;display:none;box-shadow:0 4px 12px rgba(0,0,0,.1)}
+.suggestions-list div{padding:10px 14px;cursor:pointer;font-size:.85rem;border-bottom:1px solid #f3f4f6}
+.suggestions-list div:hover{background:#eef2ff;color:#0f3460}
+.count-badge{display:inline-block;background:#eef2ff;color:#0f3460;font-size:.8rem;padding:2px 10px;border-radius:12px;margin-left:8px}
+.results-section{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden}
+#ceTabContent{overflow:visible}
+.results-header{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #e5e7eb}
+.results-header h2{font-size:1rem;font-weight:600}
+.pagination{display:flex;gap:6px;align-items:center}
+.pagination button{background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:.8rem;font-family:'Inter',sans-serif}
+.pagination button:disabled{opacity:.4;cursor:default}
+.pagination button:not(:disabled):hover{background:#f3f4f6}
+.pagination span{font-size:.8rem;color:#6b7280}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.82rem}
+th{background:#f9fafb;text-align:left;padding:10px 14px;font-weight:600;color:#374151;white-space:nowrap;cursor:pointer;user-select:none;position:relative}
+th:hover{background:#f3f4f6}
+th .sort-arrow{opacity:.3;margin-left:4px}
+th.sorted .sort-arrow{opacity:1;color:#0f3460}
+td{padding:9px 14px;border-top:1px solid #f3f4f6;color:#1a1a2e}
+tr:hover td{background:#fafbff}
+.loading{text-align:center;padding:40px;color:#6b7280;font-size:.9rem}
+.empty{text-align:center;padding:40px;color:#9ca3af}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:.75rem;font-weight:500}
+.badge-azul{background:#eef2ff;color:#0f3460}
+.badge-verde{background:#d1fae5;color:#065f46}
+
+.badge-rojo{background:#fce7f3;color:#9d174d}
+.badge-amarillo{background:#fef9c3;color:#854d0e}
+.chart-bar{display:flex;align-items:end;gap:6px;height:100px;padding:10px 0}
+.chart-bar-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+.chart-bar-item .bar{width:100%;border-radius:4px 4px 0 0;min-height:4px;transition:height .3s}
+.chart-bar-item .bar-label{font-size:.65rem;color:#6b7280;white-space:nowrap}
+.chart-bar-item .bar-value{font-size:.7rem;font-weight:600;color:#1a1a2e}
+.ce-subtabs{display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid #e5e7eb}
+.ce-subtab{padding:10px 20px;border:none;background:none;font-size:.85rem;font-weight:500;color:#6b7280;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s}
+.ce-subtab.active{color:#1a1a2e;border-bottom-color:#2563eb;font-weight:600}
+.ce-subtab:hover{color:#1a1a2e}
+@media(max-width:768px){
+  .header{padding:18px}
+  .search-row{flex-direction:column}
+  .search-group{min-width:100%}
+  .stats{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+<script src="https://raw.githubusercontent.com/fyedro/birras-app/main/data/cloud/part_0.js"></script>
+<script src="https://raw.githubusercontent.com/fyedro/birras-app/main/data/cloud/part_1.js"></script>
+<script src="https://raw.githubusercontent.com/fyedro/birras-app/main/data/cloud/part_2.js"></script>
+<script src="https://raw.githubusercontent.com/fyedro/birras-app/main/data/cloud/part_3.js"></script>
+<script src="https://raw.githubusercontent.com/fyedro/birras-app/main/data/cloud/part_4.js"></script>
+<script src="https://raw.githubusercontent.com/fyedro/birras-app/main/data/cloud/part_5.js"></script>
+
+<script>
+// -- Fetch polyfill for standalone BIRRAS --
+window.BIRRAS = BIRRAS_DATA;
+var SU = BIRRAS.su, AS = BIRRAS.as, TR = BIRRAS.tr, LI = BIRRAS.li;
+
+function computeStats(curso) {
+  var arr = curso ? SU.filter(function(s){return s.curso===curso}) : SU;
+  var total = arr.length;
+  var centros = new Set(arr.map(function(s){return s.centro})).size;
+  var dats = new Set(arr.filter(function(s){return s.dsdat}).map(function(s){return s.dsdat})).size;
+  var causas = {}; arr.forEach(function(s){var c=s.causa||'';causas[c]=(causas[c]||0)+1});
+  var top = Object.entries(causas).sort(function(a,b){return b[1]-a[1]}).slice(0,3);
+  var monthly = {}; arr.forEach(function(s){var d=s.fcpublico||'';if(d.length>=7){var k=d.slice(0,4)+'-'+d.slice(5,7);monthly[k]=(monthly[k]||0)+1}});
+  return {total:total, centros:centros, dats:dats, top_causas:top, monthly:Object.entries(monthly).sort().map(function(e){return{year:e[0].slice(0,4),month:e[0].slice(5,7),count:e[1]}})};
+}
+
+function suggestResults(q) {
+  var r = []; SU.forEach(function(s){var c=s.centro||'';if(c.toLowerCase().includes(q)&&r.indexOf(c)<0)r.push(c)});
+  return r.slice(0,10);
+}
+
+function filterListas(urlStr) {
+  var params = new URLSearchParams(urlStr.split('?')[1]||'');
+  var q = (params.get('q')||'').toLowerCase();
+  var curso = params.get('curso')||'', cuerpo = params.get('cuerpo')||'', esp = params.get('esp')||'';
+  var lista = params.get('lista')||'', subtipo = params.get('subtipo')||'', hab = params.get('hab')||'';
+  var page = parseInt(params.get('page'))||1, ps = parseInt(params.get('pageSize'))||50;
+  var filtered = LI.filter(function(r){
+    if(curso && r.curso !== curso) return false;
+    if(cuerpo){var ck=r.codcuerpocfunc+' - '+(r.cuerpocfunc||'');if(ck!==cuerpo)return false}
+    if(esp){var ek=r.codespcfunc+' - '+(r.espcfunc||'');if(ek!==esp)return false}
+    if(lista && r.tipolista!==lista) return false;
+    if(subtipo && r.subtipo!==subtipo) return false;
+    if(hab && r.habilitado!==hab) return false;
+    if(q && !((r.papellid||'')+' '+(r.sapellid||'')+' '+(r.nombre||'')).toLowerCase().includes(q)) return false;
+    return true;
+  });
+  var total = filtered.length;
+  var start = (page-1)*ps;
+  return {records:filtered.slice(start,Math.min(start+ps,total)), total:total, page:page, pageSize:ps};
+}
+
+// Override fetch
+var _origFetch = window.fetch;
+window.fetch = function(url, opts) {
+  var u = typeof url === 'string' ? url : (url.url || url.href || '');
+  if (u === '/api/data') return Promise.resolve({json:function(){return Promise.resolve(SU)}});
+  if (u.indexOf('/api/stats') === 0) {
+    var _cs = new URLSearchParams(u.split('?')[1]||'').get('curso')||'';
+    return Promise.resolve({json:function(){return Promise.resolve(computeStats(_cs))}});
+  }
+  if (u.indexOf('/api/suggest?') === 0) {
+    var q = new URLSearchParams(u.split('?')[1]||'').get('q')||'';
+    return Promise.resolve({json:function(){return Promise.resolve(suggestResults(q))}});
+  }
+  if (u === '/api/asignacion?all=1') return Promise.resolve({json:function(){return Promise.resolve(AS)}});
+  if (u === '/api/traslados?all=1') return Promise.resolve({json:function(){return Promise.resolve(TR)}});
+  if (u === '/api/listas-interinos/filters') return Promise.resolve({json:function(){return Promise.resolve({cuerpos:BIRRAS.lf.cu,especialidades:BIRRAS.lf.es.map(function(e){return{label:e.l,codCuerpo:e.c}}),cursos:BIRRAS.lf.cs})}});
+  if (u.indexOf('/api/listas-interinos?') === 0) return Promise.resolve({json:function(){return Promise.resolve(filterListas(u))}});
+  // For POST /api/refresh-sustituciones, return empty (no-op in standalone)
+  if (u.indexOf('/api/refresh-sustituciones') >= 0) {
+    var _cs2 = new URLSearchParams(u.split('?')[1]||'').get('curso')||'';
+    return Promise.resolve({json:function(){return Promise.resolve({curso:_cs2,nuevos:0,total_actual:SU.length})}});
+  }
+  return _origFetch ? _origFetch(url, opts) : Promise.reject(new Error('fetch not available: '+u));
+};
+// Also add curso field to listas records (if not already present)
+LI.forEach(function(r){if(!r.curso)r.curso='2025-2026'});
+// Add dummy _tipo_label if missing from asignacion
+AS.forEach(function(r){if(!r._tipo_label){if(r.tipo==='definitiva_funcionarios')r._tipo_label='Funcionarios';else if(r.tipo==='definitiva_interinos')r._tipo_label='Interinos';else if(r.tipo==='extraordinaria_funcionarios')r._tipo_label='Extraord. Func.';else if(r.tipo==='extraordinaria_interinos')r._tipo_label='Extraord. Int.';}});
+</script>
+</head>
+<body>
+<div class="header">
+  <div>
+    <h1>🍺 BIRRAS — Base de Interinos y Registro de Relevos, Asignaciones y Sustituciones</h1>
+    <p>Plataforma de Asignación de Docentes Interinos · Comunidad de Madrid</p>
+  </div>
+  <div class="header-right">
+    <button class="btn-export" onclick="buildHTMLStandalone()" id="btnExportHTML">📦 HTML standalone</button>
+    <button class="btn-export" onclick="buildStandalone()" id="btnExport">⬇ Exportar .dmg</button>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('listas',this)">Listas de interinos</button>
+  <button class="tab" onclick="switchTab('asignacion',this)">Asignación inicio curso</button>
+  <button class="tab" onclick="switchTab('sustituciones',this)">Sustituciones diarias</button>
+  <button class="tab" onclick="switchTab('traslados',this)">Concurso de Traslados</button>
+      <button class="tab" onclick="switchTab('funcionarios',this)">Funcionarios</button>
+  <button class="tab" onclick="switchTab('centros',this)">Centros Educativos</button>
+</div>
+
+<div id="tab-sustituciones" style="display:none">
+  <div class="stats" id="stats"></div>
+  <div class="stats" id="monthChart"></div>
+  <div class="search-section">
+    <div class="search-row">
+      <div class="search-group">
+        <label>Curso</label>
+        <select id="filterCurso"><option value="">Todos</option></select>
+      </div>
+      <div class="search-group suggestions" id="centro-group">
+        <label>Buscar</label>
+        <input type="text" id="searchCentro" placeholder="Centro, persona..." autocomplete="off">
+        <div class="suggestions-list" id="suggestionsList"></div>
+      </div>
+      <div class="search-group">
+        <label>Mes</label>
+        <select id="filterMonth"><option value="">Todos</option>
+          <option value="09">Septiembre</option><option value="10">Octubre</option>
+          <option value="11">Noviembre</option><option value="12">Diciembre</option>
+          <option value="01">Enero</option><option value="02">Febrero</option>
+          <option value="03">Marzo</option><option value="04">Abril</option>
+          <option value="05">Mayo</option><option value="06">Junio</option>
+          <option value="07">Julio</option><option value="08">Agosto</option>
+        </select>
+      </div>
+      <div class="search-group">
+        <label>Año natural</label>
+        <select id="filterYear"><option value="">Todos</option>
+          <option value="2025">2025</option><option value="2026">2026</option>
+          <option value="2027">2027</option>
+        </select>
+      </div>
+      <div class="search-group">
+        <label>DAT (Dirección de Área Territorial)</label>
+        <select id="filterDat"><option value="">Todas</option></select>
+      </div>
+      <div class="search-group">
+        <label>Localidad</label>
+        <select id="filterLocalidad"><option value="">Todas</option></select>
+      </div>
+      <div class="search-group">
+        <label>Tipo de centro</label>
+        <select id="filterCentroTipo"><option value="">Todos</option></select>
+      </div>
+      <div class="search-group">
+        <label>Bilingüe</label>
+        <select id="filterBilingue"><option value="">Todos</option></select>
+      </div>
+      <div class="search-group">
+        <label>Vacante</label>
+        <select id="filterVacanteTipo"><option value="">Todas</option></select>
+      </div>
+      <div class="search-group">
+        <label>Cuerpo</label>
+        <select id="filterCuerpo"><option value="">Todos</option></select>
+      </div>
+      <div class="search-group">
+        <label>Especialidad</label>
+        <select id="filterEsp"><option value="">Todas</option></select>
+      </div>
+      <div class="search-group">
+        <label>Causa</label>
+        <select id="filterCausa"><option value="">Todas</option></select>
+      </div>
+    </div>
+  </div>
+
+  <div class="results-section">
+    <div class="results-header">
+      <h2>Resultados <span class="count-badge" id="resultCount">0</span></h2>
+      <div class="pagination">
+        <button class="btn-export" onclick="refreshSustituciones()" style="background:#0f3460;color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:.82rem;font-weight:600;font-family:'Inter',sans-serif">🔄 Actualizar</button>
+        <button id="prevPage" disabled>← Anterior</button>
+        <span id="pageInfo">1 / 1</span>
+        <button id="nextPage" disabled>Siguiente →</button>
+      </div>
+    </div>
+    <div class="table-wrap" id="tableWrap">
+      <div class="loading" id="loading">Cargando datos...</div>
+    </div>
+  </div>
+</div>
+
+<div id="tab-traslados" style="display:none">
+  <div class="search-section">
+    <div class="search-row">
+      <div class="search-group">
+        <label>Curso</label>
+        <select id="trFilterCurso"><option value="">Todos</option>
+          <option value="2021-2022">2021-2022</option>
+          <option value="2022-2023">2022-2023</option>
+          <option value="2023-2024">2023-2024</option>
+          <option value="2024-2025">2024-2025</option>
+          <option value="2025-2026">2025-2026</option>
+        </select>
+      </div>
+      <div class="search-group">
+        <label>Cuerpo</label>
+        <select id="trFilterCuerpo"><option value="">Todos</option></select>
+      </div>
+      <div class="search-group">
+        <label>Especialidad</label>
+        <select id="trFilterEsp"><option value="">Todas</option></select>
+      </div>
+      <div class="search-group">
+        <label>Municipio</label>
+        <select id="trFilterMuni"><option value="">Todos</option></select>
+      </div>
+      <div class="search-group">
+        <label>Bilingüe</label>
+        <select id="trFilterBilingue"><option value="">Todos</option></select>
+      </div>
+      <div class="search-group">
+        <label>Oposición</label>
+        <select id="trFilterOpo"><option value="">Todos</option>
+          <option value="con">Con oposición</option><option value="sin">Sin oposición</option>
+        </select>
+      </div>
+      <div class="search-group">
+        <label>Buscar por centro</label>
+        <input type="text" id="trSearchDestino" placeholder="Destino, docente..." autocomplete="off">
+      </div>
+    </div>
+  </div>
+  <div class="results-section">
+    <div class="results-header">
+      <h2>Adjudicaciones <span class="count-badge" id="trResultCount">0</span></h2>
+      <div class="pagination">
+        <button id="trPrevPage" disabled>← Anterior</button>
+        <span id="trPageInfo">1 / 1</span>
+        <button id="trNextPage" disabled>Siguiente →</button>
+      </div>
+    </div>
+    <div class="table-wrap" id="trTableWrap">
+      <div class="loading">Cargando datos de traslados...</div>
+    </div>
+  </div>
+</div>
+
+<div id="tab-listas">
+  <div class="search-section">
+    <div class="search-row">
+      <div class="search-group">
+        <label>Curso</label>
+        <select id="liFilterCurso"><option value="">Todos</option></select>
+      </div>
+      <div class="search-group">
+        <label>Cuerpo</label>
+        <select id="liFilterCuerpo"><option value="">Todos</option></select>
+      </div>
+      <div class="search-group">
+        <label>Especialidad</label>
+        <select id="liFilterEsp"><option value="">Todas</option></select>
+      </div>
+      <div class="search-group">
+        <label>Lista</label>
+        <select id="liFilterLista"><option value="">Todas</option>
+          <option value="1">1</option><option value="3">3</option>
+        </select>
+      </div>
+      <div class="search-group">
+        <label>Subtipo</label>
+        <input type="text" id="liSearchSubtipo" placeholder="Ej: 3, 50..." style="width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem;font-family:'Inter',sans-serif">
+      </div>
+      <div class="search-group">
+        <label>Habilitado</label>
+        <select id="liFilterHab"><option value="">Todos</option>
+          <option value="S">Sí</option><option value="N">No</option>
+        </select>
+      </div>
+      <div class="search-group">
+        <label>&nbsp;</label>
+        <button class="btn-export" onclick="refreshInterinos()" id="btnRefreshLi" style="width:100%;padding:10px 14px">🔄 Actualizar listas</button>
+      </div>
+    </div>
+    <div class="search-row" style="margin-top:8px">
+      <div class="search-group" style="flex:0 0 auto;min-width:0">
+        <label>Estado</label>
+        <div style="display:flex;gap:3px;flex-wrap:nowrap;white-space:nowrap;align-items:center">
+          <label style="font-weight:400;font-size:.8rem;cursor:pointer;display:flex;align-items:center;gap:2px"><input type="checkbox" id="liFilterEstLibre" checked> Libre</label>
+          <label style="font-weight:400;font-size:.8rem;cursor:pointer;display:flex;align-items:center;gap:2px"><input type="checkbox" id="liFilterEstOcupado" checked> Ocupado</label>
+          <label style="font-weight:400;font-size:.8rem;cursor:pointer;display:flex;align-items:center;gap:2px"><input type="checkbox" id="liFilterEstBaja" checked> Baja</label>
+          <label style="font-weight:400;font-size:.8rem;cursor:pointer;display:flex;align-items:center;gap:2px"><input type="checkbox" id="liFilterEstBajaT" checked> B.Temp</label>
+        </div>
+      </div>
+      <div class="search-group" style="flex:1">
+        <label>Buscar docente</label>
+        <input type="text" id="liSearchNombre" placeholder="Apellidos, nombre..." autocomplete="off" style="width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem;font-family:'Inter',sans-serif">
+      </div>
+    </div>
+  </div>
+  <div class="results-section">
+    <div class="results-header">
+      <h2>Interinos en listas <span class="count-badge" id="liResultCount">0</span></h2>
+      <div class="pagination">
+        <button id="liPrevPage" disabled>← Anterior</button>
+        <span id="liPageInfo">1 / 1</span>
+        <button id="liNextPage" disabled>Siguiente →</button>
+      </div>
+    </div>
+    <div class="table-wrap" id="liTableWrap">
+      <div class="loading">Cargando listas de interinos...</div>
+    </div>
+  </div>
+</div>
+
+<div id="tab-funcionarios" style="display:none">
+  <div class="stats" id="fnStats"></div>
+  <div class="search-section">
+    <div class="search-row">
+      <div class="search-group">
+        <label>Buscar</label>
+        <input type="text" id="fnSearch" placeholder="Nombre, DNI..." autocomplete="off">
+      </div>
+      <div class="search-group">
+        <label>Cuerpo</label>
+        <select id="fnFilterCuerpo"><option value="">Todos</option></select>
+      </div>
+      <div class="search-group">
+        <label>Curso</label>
+        <select id="fnFilterCurso"><option value="">Todos</option></select>
+      </div>
+      <div class="search-group">
+        <label>Convocatoria Opo.</label>
+        <select id="fnFilterConv"><option value="">Todas</option></select>
+      </div>
+      <div class="search-group">
+        <label>Acceso</label>
+        <select id="fnFilterAcceso"><option value="">Todos</option></select>
+      </div>
+    </div>
+  </div>
+  <div class="results-section">
+    <div class="results-header">
+      <h2>Funcionarios <span class="count-badge" id="fnResultCount">0</span></h2>
+      <div class="pagination">
+        <button id="fnPrevPage" disabled>← Anterior</button>
+        <span id="fnPageInfo">1 / 1</span>
+        <button id="fnNextPage" disabled>Siguiente →</button>
+      </div>
+    </div>
+    <div class="table-wrap" id="fnTableWrap">
+      <div class="loading">Cargando funcionarios...</div>
+    </div>
+  </div>
+</div>
+
+<!-- Oposiciones tab removed. Was:
+<div id="tab-oposiciones" style="display:none">
+  <div class="stats" id="opStats"></div>
+  <div class="search-section">
+    <div class="search-row">
+      <div class="search-group">
+        <label>Convocatoria</label>
+        <select id="opFilterConv"><option value="">Todas</option></select>
+      </div>
+      <div class="search-group">
+        <label>Cuerpo</label>
+        <select id="opFilterCuerpo"><option value="">Todos</option></select>
+      </div>
+      <div class="search-group">
+        <label>Especialidad</label>
+        <select id="opFilterEsp"><option value="">Todas</option></select>
+      </div>
+      <div class="search-group">
+        <label>Acceso</label>
+        <select id="opFilterAcceso"><option value="">Todos</option></select>
+      </div>
+      <div class="search-group" style="flex:2">
+        <label>Buscar</label>
+        <input type="text" id="opSearch" placeholder="Nombre, apellidos, DNI..." autocomplete="off" style="width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem;font-family:'Inter',sans-serif">
+      </div>
+    </div>
+  </div>
+  <div class="results-section">
+    <div class="results-header">
+      <h2>Seleccionados <span class="count-badge" id="opResultCount">0</span></h2>
+      <div class="pagination">
+        <button id="opPrevPage" disabled>← Anterior</button>
+        <span id="opPageInfo">1 / 1</span>
+        <button id="opNextPage" disabled>Siguiente →</button>
+      </div>
+    </div>
+    <div class="table-wrap" id="opTableWrap">
+      <div class="loading" id="opLoading">Cargando datos de oposiciones...</div>
+    </div>
+  </div>
+</div>
+-->
+
+<div id="tab-centros" style="display:none">
+  <div class="search-section">
+    <div class="search-row">
+      <div class="search-group">
+        <label>Tipo de centro</label>
+        <select id="ceFilterTipo"><option value="">Todos</option></select>
+      </div>
+      <div class="search-group">
+        <label>Titularidad</label>
+        <select id="ceFilterTit"><option value="">Todas</option></select>
+      </div>
+      <div class="search-group">
+        <label>DAT</label>
+        <select id="ceFilterDat"><option value="">Todas</option></select>
+      </div>
+      <div class="search-group">
+        <label>Estado</label>
+        <select id="ceFilterEstado"><option value="">Todos</option>
+          <option value="ALTA">ALTA</option><option value="BAJA">BAJA</option>
+          <option value="INACTIVO">INACTIVO</option>
+        </select>
+      </div>
+      <div class="search-group">
+        <label>Bilingüe</label>
+        <select id="ceFilterBilingue"><option value="">Todos</option></select>
+      </div>
+      <div class="search-group">
+        <label>Municipio</label>
+        <select id="ceFilterMuni"><option value="">Todos</option></select>
+      </div>
+      <div class="search-group" style="flex:2">
+        <label>Buscar</label>
+        <input type="text" id="ceSearch" placeholder="Nombre, código..." autocomplete="off" style="width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem;font-family:'Inter',sans-serif">
+      </div>
+    </div>
+  </div>
+  <div class="results-section" id="ceTabContent">
+    <div class="ce-subtabs">
+      <button class="ce-subtab active" onclick="ceSwitchSubtab('listado')">Listado de centros</button>
+      <button class="ce-subtab" onclick="ceSwitchSubtab('profesorado')">Profesorado</button>
+      <button class="ce-subtab" onclick="ceSwitchSubtab('oferta')">Oferta educativa</button>
+    </div>
+
+    <!-- Sub-tab: Listado de centros -->
+    <div id="ceSubtabListado" class="ce-subtab-content">
+      <div class="results-header">
+        <h2>Centros <span class="count-badge" id="ceResultCount">0</span></h2>
+        <div class="pagination">
+          <button id="cePrevPage" disabled>← Anterior</button>
+          <span id="cePageInfo">1 / 1</span>
+          <button id="ceNextPage" disabled>Siguiente →</button>
+        </div>
+      </div>
+      <div class="table-wrap" id="ceTableWrap">
+        <div class="loading">Cargando centros educativos...</div>
+      </div>
+    </div>
+
+    <!-- Sub-tab: Profesorado -->
+    <div id="ceSubtabProfesorado" class="ce-subtab-content" style="display:none">
+      <div class="results-header">
+        <h2>Profesores en <span id="ceProfesoresCentro"></span> <span class="count-badge" id="ceProfesoresCount">0</span></h2>
+        <div class="pagination">
+          <button id="ceProfPrevPage" disabled>← Anterior</button>
+          <span id="ceProfPageInfo">1 / 1</span>
+          <button id="ceProfNextPage" disabled>Siguiente →</button>
+        </div>
+      </div>
+      <div class="search-row" style="margin-bottom:12px">
+        <div class="search-group suggestions" style="flex:1.5;position:relative">
+          <label>Centro</label>
+          <input type="text" id="ceProfFilterCentro" placeholder="Escribe nombre del centro..." autocomplete="off" style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.85rem;font-family:'Inter',sans-serif">
+          <div class="suggestions-list" id="ceProfCentroSuggest"></div>
+        </div>
+        <div class="search-group" style="flex:1">
+          <label>Municipio</label>
+          <select id="ceProfFilterMuni"><option value="">Todos</option></select>
+        </div>
+        <div class="search-group" style="flex:1">
+          <label>Curso</label>
+          <select id="ceProfFilterCurso"><option value="">Selecciona curso</option></select>
+        </div>
+        <div class="search-group" style="flex:1">
+          <label>Especialidad</label>
+          <select id="ceProfFilterEsp"><option value="">Todas</option></select>
+        </div>
+        <div class="search-group" style="flex:1">
+          <label>Buscar profesor</label>
+          <input type="text" id="ceProfSearch" placeholder="Nombre o DNI..." autocomplete="off" style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.85rem;font-family:'Inter',sans-serif">
+        </div>
+      </div>
+      <div class="table-wrap" id="ceProfesoresWrap">
+        <div class="empty">Selecciona un centro para ver sus profesores</div>
+      </div>
+    </div>
+
+    <!-- Sub-tab: Oferta educativa -->
+    <div id="ceSubtabOferta" class="ce-subtab-content" style="display:none">
+      <div class="search-row" style="margin-bottom:8px">
+        <div class="search-group suggestions" style="flex:2;position:relative">
+          <label>Buscar ciclo formativo o centro</label>
+          <input type="text" id="ceOfertaSearch" placeholder="Ej: sistemas microinformáticos, IES Clara del Rey..." autocomplete="off" style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.85rem;font-family:'Inter',sans-serif">
+          <div class="suggestions-list" id="ceOfertaSearchSuggest"></div>
+        </div>
+        <div class="search-group" style="flex:0">
+          <label>&nbsp;</label>
+          <button onclick="ceOfertaDoSearch()" style="padding:8px 20px;background:#2563eb;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.85rem">Buscar</button>
+        </div>
+      </div>
+      <div class="search-row" style="margin-bottom:12px">
+        <div class="search-group" style="flex:1">
+          <label>Municipio</label>
+          <select id="ceOfertaFilterMuni"><option value="">Todos</option></select>
+        </div>
+        <div class="search-group" style="flex:1">
+          <label>Familia profesional</label>
+          <select id="ceOfertaFilterFamilia"><option value="">Todas</option></select>
+        </div>
+        <div class="search-group" style="flex:1">
+          <label>Nivel</label>
+          <select id="ceOfertaFilterNivel"><option value="">Todos</option><option value="gm">Grado Medio</option><option value="gs">Grado Superior</option><option value="gb">Grado Básico</option><option value="virtual">Virtual / Semipresencial</option></select>
+        </div>
+        <div class="search-group" style="flex:1">
+          <label>Modalidad</label>
+          <select id="ceOfertaFilterModalidad"><option value="">Todas</option></select>
+        </div>
+        <div class="search-group" style="flex:1">
+          <label>Turno</label>
+          <select id="ceOfertaFilterTurno"><option value="">Todos</option></select>
+        </div>
+      </div>
+      <div class="results-header">
+        <h2 id="ceOfertaHeading">Oferta educativa</h2>
+      </div>
+      <div class="table-wrap" id="ceOfertaWrap">
+        <div class="empty" style="padding:40px;text-align:center;color:#6b7280">Selecciona un centro o busca un ciclo formativo</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="tab-asignacion" style="display:none">
+  <div class="stats" id="asigStats"></div>
+  <div class="search-section">
+    <div class="search-row">
+      <div class="search-group">
+        <label>Curso</label>
+        <select id="asFilterCurso"><option value="">Todos</option></select>
+      </div>
+      <div class="search-group">
+        <label>Cuerpo</label>
+        <select id="asFilterCuerpo"><option value="">Todos</option></select>
+      </div>
+      <div class="search-group">
+        <label>Especialidad</label>
+        <select id="asFilterEsp"><option value="">Todas</option></select>
+      </div>
+      <div class="search-group">
+        <label>Tipo asignación</label>
+        <select id="asFilterTipo"><option value="">Todos</option></select>
+      </div>
+      <div class="search-group">
+        <label>Localidad</label>
+        <select id="asFilterLocalidad"><option value="">Todas</option></select>
+      </div>
+      <div class="search-group">
+        <label>Tipo de centro</label>
+        <select id="asFilterCentroTipo"><option value="">Todos</option></select>
+      </div>
+      <div class="search-group">
+        <label>Bilingüe</label>
+        <select id="asFilterBilingue"><option value="">Todos</option></select>
+      </div>
+      <div class="search-group">
+        <label>Vacante</label>
+        <select id="asFilterVacante"><option value="">Todas</option></select>
+      </div>
+      <div class="search-group">
+        <label>Buscar docente</label>
+        <input type="text" id="asSearchNombre" placeholder="Apellidos, nombre..." autocomplete="off">
+      </div>
+      <div class="search-group">
+        <label>Buscar centro/código</label>
+        <input type="text" id="asSearch" placeholder="IES, código, DAT..." autocomplete="off">
+      </div>
+      <div class="search-group">
+        <label>Match interino</label>
+        <select id="asFilterMatch"><option value="">Todos</option>
+          <option value="con">Con match</option><option value="sin">Sin match</option>
+        </select>
+      </div>
+      <div class="search-group">
+        <label>Oposición</label>
+        <select id="asFilterOpo"><option value="">Todos</option>
+          <option value="con">Con oposición</option><option value="sin">Sin oposición</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  <div class="results-section">
+    <div class="results-header">
+      <h2>Adjudicaciones <span class="count-badge" id="asResultCount">0</span></h2>
+      <div class="pagination">
+        <button id="asPrevPage" disabled>← Anterior</button>
+        <span id="asPageInfo">1 / 1</span>
+        <button id="asNextPage" disabled>Siguiente →</button>
+      </div>
+    </div>
+    <div class="table-wrap" id="asTableWrap">
+      <div class="loading">Cargando...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const PAGE_SIZE = 100;
+const TR_PAGE_SIZE = 100;
+const AS_PAGE_SIZE = 100;
+const CE_PAGE_SIZE = 100;
+let allData = [], filtered = [], page = 0, sortCol = null, sortAsc = true, allEsps = [];
+const MONTHS = {'09':'Sep','10':'Oct','11':'Nov','12':'Dic','01':'Ene','02':'Feb','03':'Mar','04':'Abr','05':'May','06':'Jun','07':'Jul','08':'Ago'};
+
+function cursoActualLabel() {
+  var d = new Date(), y = d.getFullYear();
+  var start = d.getMonth() >= 8 ? y : y - 1;
+  return start + '-' + (start + 1);
+}
+
+function buildCursoFilter() {
+  const sel = document.getElementById('filterCurso');
+  const cursos = [...new Set(allData.map(s => s.curso).filter(Boolean))];
+  const actual = cursoActualLabel();
+  if (!cursos.includes(actual)) cursos.push(actual);
+  cursos.sort();
+  sel.innerHTML = '<option value="">Todos</option>' + cursos.map(c => `<option value="${c}">${c}</option>`).join('');
+  sel.value = actual;
+}
+
+function loadSustituciones() {
+  fetch('/api/data')
+    .then(r => r.json())
+    .then(data => {
+      allData = data;
+      buildCursoFilter();
+      buildFilters();
+      applyFilters();
+      renderStats();
+      document.getElementById('loading').innerHTML = '';
+    });
+}
+
+function renderStats() {
+  const curso = document.getElementById('filterCurso').value;
+  fetch('/api/stats' + (curso ? '?curso=' + encodeURIComponent(curso) : ''))
+    .then(r => r.json())
+    .then(s => {
+      document.getElementById('stats').innerHTML = `
+        <div class="stat-card"><div class="label">Total sustituciones</div><div class="value">${s.total.toLocaleString()}</div></div>
+        <div class="stat-card"><div class="label">Centros distintos</div><div class="value">${s.centros.toLocaleString()}</div></div>
+        <div class="stat-card"><div class="label">DAT</div><div class="value">${s.dats}</div></div>
+        <div class="stat-card"><div class="label">Principal causa</div><div class="value">${s.top_causas[0][0]}</div><div style="font-size:.8rem;color:#6b7280">${s.top_causas[0][1].toLocaleString()} casos</div></div>
+      `;
+      const maxCount = Math.max(...s.monthly.map(m => m.count));
+      const curStartYear = parseInt(cursoActualLabel().split('-')[0]);
+      document.getElementById('monthChart').innerHTML = `<div class="stat-card"><div class="label" style="margin-bottom:8px">Sustituciones por mes</div>
+        <div class="chart-bar">${s.monthly.map(m =>
+          `<div class="chart-bar-item"><div class="bar" style="height:${Math.max(4, m.count/maxCount*80)}px;background:${m.year==String(curStartYear)?'#0f3460':'#1d4ed8'}"></div>
+          <div class="bar-value">${m.count}</div><div class="bar-label">${MONTHS[m.month]||m.month}</div></div>`
+        ).join('')}</div></div>`;
+    });
+}
+
+function buildFilters() {
+  const dats = new Set(), causas = new Set(), cuerpos = new Set(), localidades = new Set(), centrosTipo = new Set(), bilTokens = new Set(), vacantes = new Set();
+  const espMap = new Map();
+  allData.forEach(s => {
+    if (s.dsdat) dats.add(s.dsdat);
+    if (s.causa) causas.add(s.causa);
+    if (s.dloc) localidades.add(s.dloc);
+    if (s._centro_tipo) centrosTipo.add(s._centro_tipo);
+    if (s._cod_cuerpo) cuerpos.add(`${s._cod_cuerpo} - ${s._nom_cuerpo}`);
+    if (s.cfunc && s.dfuncion) {
+      const key = `${s.cfunc} - ${s.dfuncion}`;
+      if (!espMap.has(key)) espMap.set(key, { codCuerpo: s._cod_cuerpo, label: key });
+    }
+    if (s._bilingue) s._bilingue.split(' + ').forEach(t => bilTokens.add(t));
+    if (s.tpvacante) vacantes.add(s.tpvacante);
+  });
+  allEsps = [...espMap.values()];
+  // Synthetic ZZ - MUSICA FUSION (union of 016 + 832 for body 0590)
+  if (allEsps.some(function(e){return e.label.indexOf('0590016')===0}) && allEsps.some(function(e){return e.label.indexOf('0590832')===0})) {
+    allEsps.push({codCuerpo:'590', label:'0590ZZ - MUSICA FUSION'});
+  }
+  populateSelect('filterDat', [...dats].sort());
+  populateSelect('filterCausa', [...causas].sort());
+  populateSelect('filterLocalidad', [...localidades].sort());
+  populateSelect('filterCentroTipo', [...centrosTipo].sort());
+  const selBil = document.getElementById('filterBilingue');
+  selBil.innerHTML = '<option value="">Todos</option><option value="__no">No bilingüe</option>';
+  [...bilTokens].sort().forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; selBil.appendChild(o); });
+  populateSelect('filterVacanteTipo', [...vacantes].sort());
+  populateSelect('filterCuerpo', [...cuerpos].sort());
+  updateEspFilter();
+}
+
+function populateSelect(id, opts, values) {
+  const sel = document.getElementById(id);
+  sel.innerHTML = `<option value="">${id==='filterEsp'?'Todas':id==='filterCuerpo'?'Todos':'Todas'}</option>`;
+  opts.forEach((o, i) => {
+    const e = document.createElement('option');
+    e.value = values ? values[i] : o;
+    e.textContent = o;
+    sel.appendChild(e);
+  });
+}
+
+function updateEspFilter() {
+  const cuerpo = document.getElementById('filterCuerpo').value;
+  const filtered = (cuerpo
+    ? allEsps.filter(e => e.codCuerpo === cuerpo.split(' - ')[0])
+    : allEsps).sort((a, b) => a.label < b.label ? -1 : a.label > b.label ? 1 : 0);
+  populateSelect('filterEsp', filtered.map(e => e.label));
+}
+
+function applyFilters() {
+  const q = document.getElementById('searchCentro').value.trim().toLowerCase();
+  const month = document.getElementById('filterMonth').value;
+  const year = document.getElementById('filterYear').value;
+  const dat = document.getElementById('filterDat').value;
+  const loc = document.getElementById('filterLocalidad').value;
+  const centroTipo = document.getElementById('filterCentroTipo').value;
+  const bilingue = document.getElementById('filterBilingue').value;
+  const vacanteTipo = document.getElementById('filterVacanteTipo').value;
+  const esp = document.getElementById('filterEsp').value;
+  const causa = document.getElementById('filterCausa').value;
+  const cuerpo = document.getElementById('filterCuerpo').value;
+  const curso = document.getElementById('filterCurso').value;
+
+  filtered = allData.filter(s => {
+    if (curso && s.curso !== curso) return false;
+    if (q) {
+      const nombreCompleto = [s.papellid, s.sapellid, s.nombre].filter(Boolean).join(' ');
+      const texto = (s.centro||'') + ' ' + nombreCompleto;
+      if (!texto.toLowerCase().includes(q)) return false;
+    }
+    if (dat && s.dsdat !== dat) return false;
+    if (loc && s.dloc !== loc) return false;
+    if (centroTipo && s._centro_tipo !== centroTipo) return false;
+    if (bilingue === '__no' && s._bilingue) return false;
+    if (bilingue && bilingue !== '__no' && !(s._bilingue && s._bilingue.includes(bilingue))) return false;
+    if (vacanteTipo && s.tpvacante !== vacanteTipo) return false;
+    if (esp === '0590ZZ - MUSICA FUSION') {
+      var _cf = s.cfunc || '';
+      if (_cf.indexOf('0590016') !== 0 && _cf.indexOf('0590832') !== 0) return false;
+    } else if (esp && s.cfunc + ' - ' + (s.dfuncion||'') !== esp) return false;
+    if (causa && s.causa !== causa) return false;
+    if (cuerpo) {
+      const sc = `${s._cod_cuerpo} - ${s._nom_cuerpo}`;
+      if (sc !== cuerpo) return false;
+    }
+    if (month) {
+      const m = s.fcpublico ? s.fcpublico.substring(5,7) : '';
+      if (m !== month) return false;
+    }
+    if (year) {
+      const y = s.fcpublico ? s.fcpublico.substring(0,4) : '';
+      if (y !== year) return false;
+    }
+    return true;
+  });
+  page = 0;
+  render();
+}
+
+function render() {
+  const start = page * PAGE_SIZE;
+  const end = Math.min(start + PAGE_SIZE, filtered.length);
+  const items = filtered.slice(start, end);
+  document.getElementById('resultCount').textContent = filtered.length;
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE) || 1;
+  document.getElementById('pageInfo').textContent = (page + 1) + ' / ' + totalPages;
+  document.getElementById('prevPage').disabled = page === 0;
+  document.getElementById('nextPage').disabled = end >= filtered.length;
+  const h = '<table><thead><tr>' + [
+    {key:'curso', label:'Curso'}, {key:'fecha', label:'Fecha'}, {key:'centro', label:'Centro'},
+    {key:'dsdat', label:'DAT'}, {key:'dloc', label:'Localidad'},
+    {key:'causa', label:'Causa'}, {key:'dfuncion', label:'Especialidad'},
+    {key:'_centro_tipo', label:'Tipo centro'}, {key:'_bilingue', label:'Bilingüe'},
+    {key:'tpvacante', label:'Vacante'}, {key:'_nom_cuerpo', label:'Cuerpo'},
+    {key:'nombre_completo', label:'Docente'},
+    {key:'lista', label:'Lista'},{key:'orden', label:'Orden'}
+  ].map(c => `<th onclick="sort('${c.key}')">${c.label} <span class="sort-arrow">${sortCol===c.key?(sortAsc?'▲':'▼'):'▽'}</span></th>`).join('') +
+  '</tr></thead><tbody>' +
+  items.map(s => {
+    const bil = s._bilingue ? '<span class="bil-badge">' + s._bilingue + '</span>' : '<span class="bil-badge bil-no">No bilingüe</span>';
+    const nombreCompleto = [s.papellid, s.sapellid, s.nombre].filter(Boolean).join(' ') || '—';
+    return '<tr><td>' + (s.curso||'') + '</td><td>' + (s.fcpublico||'') + '</td><td><strong>' + (s.centro||'') + '</strong></td><td>' + (s.dsdat||'') +
+      '</td><td>' + (s.dloc||'') + '</td><td>' + (s.causa||'') + '</td><td>' + (s.dfuncion||'') +
+      '</td><td>' + (s._centro_tipo||'') + '</td><td>' + bil + '</td><td>' + (s.tpvacante||'') +
+      '</td><td>' + (s._nom_cuerpo||'') + '</td><td>' + nombreCompleto +
+      '</td><td>' + (s.lista||'') + '</td><td>' + (s.orden||'') + '</td></tr>';
+  }).join('') + '</tbody></table>';
+  document.getElementById('tableWrap').innerHTML = h;
+}
+
+function applySort(key) {
+  const dir = sortCol === key ? !sortAsc : true;
+  sortCol = key; sortAsc = dir;
+  filtered.sort((a, b) => {
+    const va = (a[key]||'').toString().toLowerCase();
+    const vb = (b[key]||'').toString().toLowerCase();
+    return va < vb ? (dir ? -1 : 1) : va > vb ? (dir ? 1 : -1) : 0;
+  });
+  render();
+}
+
+function sort(col) { applySort(col); }
+
+document.getElementById('prevPage').onclick = () => { if (page > 0) { page--; render(); } };
+document.getElementById('nextPage').onclick = () => { if ((page + 1) * PAGE_SIZE < filtered.length) { page++; render(); } };
+
+document.getElementById('searchCentro').addEventListener('keydown', e => { if (e.key === 'Enter') { suggestionsList.style.display = 'none'; applyFilters(); } });
+
+// ── Traslados ──
+let trAll = [], trFiltered = [], trPage = 0;
+let trSortCol = null, trSortAsc = true;
+
+function loadTraslados() {
+  fetch('/api/traslados?all=1')
+    .then(r => r.json())
+    .then(data => {
+      trAll = data;
+      document.querySelector('#tab-traslados .loading').innerHTML = '';
+      buildTrFilters();
+      applyTrFilters();
+    });
+}
+
+function buildTrFilters() {
+  const cuerpos = new Set(), esps = [], munis = new Set(), bilTokens = new Set();
+  const espMap = {};
+  trAll.forEach(s => {
+    if (s._nom_cuerpo) cuerpos.add(`${s._cod_cuerpo||''} - ${s._nom_cuerpo}`);
+    if (s.especialidad_codigo && s.especialidad) {
+      const key = s.especialidad_codigo + ' - ' + s.especialidad;
+      if (!espMap[key]) {
+        espMap[key] = {codCuerpo: s._cod_cuerpo || '', label: key};
+        esps.push(espMap[key]);
+      }
+    }
+    if (s._centro_municipio) munis.add(s._centro_municipio);
+    if (s._bilingue) s._bilingue.split(' + ').forEach(t => bilTokens.add(t));
+  });
+  window.trEsps = esps;
+  if (window.trEsps.some(function(e){return e.label.indexOf('590016')===0}) && window.trEsps.some(function(e){return e.label.indexOf('590832')===0})) {
+    window.trEsps.push({codCuerpo:'590', label:'590ZZ - MÚSICA FUSIÓN'});
+  }
+  populateSelect('trFilterCuerpo', [...cuerpos].sort());
+  const selEsp = document.getElementById('trFilterEsp');
+  selEsp.innerHTML = '<option value="">Todas</option>';
+  window.trEsps.sort((a,b) => a.label < b.label ? -1 : a.label > b.label ? 1 : 0).forEach(e => {
+    const o = document.createElement('option'); o.value = e.label; o.textContent = e.label; selEsp.appendChild(o);
+  });
+  populateSelect('trFilterMuni', [...munis].sort());
+  const selBil = document.getElementById('trFilterBilingue');
+  selBil.innerHTML = '<option value="">Todos</option><option value="__no">No bilingüe</option>';
+  [...bilTokens].sort().forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; selBil.appendChild(o); });
+}
+
+function updateTrEspFilter() {
+  const cuerpo = document.getElementById('trFilterCuerpo').value;
+  const filtered = (cuerpo ? window.trEsps.filter(e => e.codCuerpo === cuerpo.split(' - ')[0]) : window.trEsps).sort((a,b) => a.label < b.label ? -1 : a.label > b.label ? 1 : 0);
+  const sel = document.getElementById('trFilterEsp');
+  sel.innerHTML = '<option value="">Todas</option>';
+  filtered.forEach(e => { const o = document.createElement('option'); o.value = e.label; o.textContent = e.label; sel.appendChild(o); });
+}
+
+function applyTrFilters() {
+  const q = document.getElementById('trSearchDestino').value.trim().toLowerCase();
+  const curso = document.getElementById('trFilterCurso').value;
+  const cuerpo = document.getElementById('trFilterCuerpo').value;
+  const esp = document.getElementById('trFilterEsp').value;
+  const muni = document.getElementById('trFilterMuni').value;
+  const bilingue = document.getElementById('trFilterBilingue').value;
+  const opo = document.getElementById('trFilterOpo').value;
+  trFiltered = trAll.filter(s => {
+    if (q) { const d = ((s.destino||'') + ' ' + (s.nombre||'')).toLowerCase(); if (!d.includes(q)) return false; }
+    if (curso && s.curso !== curso) return false;
+    if (cuerpo && `${s._cod_cuerpo||''} - ${s._nom_cuerpo}` !== cuerpo) return false;
+    if (esp === '590ZZ - MÚSICA FUSIÓN') {
+      var _cf = s.especialidad_codigo || '';
+      if (_cf.indexOf('590016') !== 0 && _cf.indexOf('590832') !== 0) return false;
+    } else if (esp && s.especialidad_codigo + ' - ' + (s.especialidad||'') !== esp) return false;
+    if (muni && s._centro_municipio !== muni) return false;
+    if (bilingue === '__no' && s._bilingue) return false;
+    if (bilingue && bilingue !== '__no' && !(s._bilingue && s._bilingue.includes(bilingue))) return false;
+    if (opo === 'con' && !s.es_seleccionado_oposicion) return false;
+    if (opo === 'sin' && s.es_seleccionado_oposicion) return false;
+    return true;
+  });
+  trPage = 0;
+  renderTr();
+}
+
+function renderTr() {
+  const start = trPage * TR_PAGE_SIZE;
+  const end = Math.min(start + TR_PAGE_SIZE, trFiltered.length);
+  const items = trFiltered.slice(start, end);
+  document.getElementById('trResultCount').textContent = trFiltered.length;
+  const totalPages = Math.ceil(trFiltered.length / TR_PAGE_SIZE) || 1;
+  document.getElementById('trPageInfo').textContent = (trPage + 1) + ' / ' + totalPages;
+  document.getElementById('trPrevPage').disabled = trPage === 0;
+  document.getElementById('trNextPage').disabled = end >= trFiltered.length;
+  const h = '<table><thead><tr>' +
+    [{key:'curso', label:'Curso'},{key:'nombre', label:'Nombre'},
+     {key:'_nom_cuerpo', label:'Cuerpo'},{key:'especialidad', label:'Especialidad'},
+     {key:'destino', label:'Destino'},{key:'_centro_municipio', label:'Municipio'},
+     {key:'_bilingue', label:'Bilingüe'}].map(c =>
+      `<th onclick="trSort('${c.key}')">${c.label} <span class="sort-arrow">${trSortCol===c.key?(trSortAsc?'▲':'▼'):'▽'}</span></th>`
+    ).join('') + '<th>Oposición</th></tr></thead><tbody>' +
+    items.map(s => {
+      const bil = s._bilingue ? '<span class="bil-badge">' + s._bilingue + '</span>' : '<span class="bil-badge bil-no">No bilingüe</span>';
+      const oppo = s.es_seleccionado_oposicion ? '<span class="bil-badge" style="background:#fef3c7;color:#92400e">Sí</span>' : '<span class="bil-badge bil-no">—</span>';
+      return '<tr><td>' + (s.curso||'') + '</td><td>' + (s.nombre||'') +
+        '</td><td>' + (s._nom_cuerpo||'') + '</td><td>' + (s.especialidad||'') + '</td><td>' + (s.destino||'') +
+        '</td><td>' + (s._centro_municipio||'') + '</td><td>' + bil + '</td><td>' + oppo + '</td></tr>';
+    }).join('') + '</tbody></table>';
+  document.getElementById('trTableWrap').innerHTML = h;
+}
+
+function trApplySort(key) {
+  const dir = trSortCol === key ? !trSortAsc : true;
+  trSortCol = key; trSortAsc = dir;
+  trFiltered.sort((a, b) => {
+    const va = (a[key]||'').toString().toLowerCase();
+    const vb = (b[key]||'').toString().toLowerCase();
+    return va < vb ? (dir ? -1 : 1) : va > vb ? (dir ? 1 : -1) : 0;
+  });
+  renderTr();
+}
+
+function trSort(col) { trApplySort(col); }
+
+document.getElementById('trPrevPage').onclick = () => { if (trPage > 0) { trPage--; renderTr(); } };
+document.getElementById('trNextPage').onclick = () => { if ((trPage + 1) * TR_PAGE_SIZE < trFiltered.length) { trPage++; renderTr(); } };
+
+document.getElementById('trFilterCurso').onchange = () => applyTrFilters();
+document.getElementById('trFilterCuerpo').onchange = () => { updateTrEspFilter(); applyTrFilters(); };
+document.getElementById('trFilterEsp').onchange = () => applyTrFilters();
+document.getElementById('trFilterMuni').onchange = () => applyTrFilters();
+document.getElementById('trFilterBilingue').onchange = () => applyTrFilters();
+document.getElementById('trFilterOpo').onchange = () => applyTrFilters();
+const trSearchInput = document.getElementById('trSearchDestino');
+trSearchInput.addEventListener('input', () => { applyTrFilters(); });
+trSearchInput.addEventListener('keydown', e => { if (e.key === 'Enter') applyTrFilters(); });
+
+// ── Asignación inicio curso ──
+let asAll = [], asFiltered = [], asPage = 0;
+
+function loadAsignacion() {
+  fetch('/api/asignacion?all=1')
+    .then(r => r.json())
+    .then(data => {
+      asAll = data.filter(r => r.tipo_asignacion === 'centro');
+      buildAsFilters();
+      applyAsFilters();
+      renderAsStats();
+      document.querySelector('#tab-asignacion .loading').innerHTML = '';
+    });
+}
+
+function renderAsStats() {
+  const total = asAll.length;
+  const centros = new Set(asAll.filter(r => r.centro_codigo).map(r => r.centro_codigo)).size;
+  const types = {};
+  asAll.forEach(r => { const t = r._tipo_label || r.tipo; types[t] = (types[t] || 0) + 1; });
+  const conMatch = asAll.filter(r => r._interino_match).length;
+  const sinMatch = total - conMatch;
+  const conOpo = asAll.filter(r => r.es_seleccionado_oposicion).length;
+  const sinOpo = total - conOpo;
+  let html = '<div class="stat-card"><div class="label">Total adjudicaciones</div><div class="value">' + total.toLocaleString() + '</div></div>';
+  html += '<div class="stat-card"><div class="label">Centros distintos</div><div class="value">' + centros.toLocaleString() + '</div></div>';
+  html += '<div class="stat-card"><div class="label" style="color:#065f46">✓ Con match interino</div><div class="value">' + conMatch.toLocaleString() + '</div></div>';
+  html += '<div class="stat-card"><div class="label" style="color:#6b7280">— Sin match</div><div class="value">' + sinMatch.toLocaleString() + '</div></div>';
+  html += '<div class="stat-card"><div class="label" style="color:#1d4ed8">✓ Seleccionado oposición</div><div class="value">' + conOpo.toLocaleString() + '</div></div>';
+  html += '<div class="stat-card"><div class="label" style="color:#6b7280">— Sin oposición</div><div class="value">' + sinOpo.toLocaleString() + '</div></div>';
+  Object.entries(types).forEach(([k, v]) => {
+    html += '<div class="stat-card"><div class="label">' + k + '</div><div class="value">' + v.toLocaleString() + '</div></div>';
+  });
+  document.getElementById('asigStats').innerHTML = html;
+}
+
+function buildAsFilters() {
+  const tipos = new Set(), cuerpos = new Set(), esps = new Map(), cursos = new Set(), localidades = new Set(), centrosTipo = new Set(), bilTokens = new Set(), vacantes = new Set();
+  asAll.forEach(r => {
+    const tl = r._tipo_label || r.tipo;
+    if (tl) tipos.add(tl);
+    const ck = r._cod_cuerpo ? r._cod_cuerpo + ' - ' + r._nom_cuerpo : '';
+    if (ck.length > 4) cuerpos.add(ck);
+    if (r.especialidad_codigo && r.especialidad_nombre) {
+      const ek = r.especialidad_codigo + ' - ' + r.especialidad_nombre;
+      if (!esps.has(ek)) esps.set(ek, { codCuerpo: r._cod_cuerpo || '', label: ek });
+    }
+    if (r.curso) cursos.add(r.curso);
+    if (r.localidad) localidades.add(r.localidad);
+    if (r._centro_tipo) centrosTipo.add(r._centro_tipo);
+    if (r._bilingue) r._bilingue.split(' + ').forEach(t => bilTokens.add(t));
+    if (r.vacante) vacantes.add(r.vacante);
+  });
+  window.asEsps = [...esps.values()];
+  if (window.asEsps.some(function(e){return e.label.indexOf('016 - ')===0}) && window.asEsps.some(function(e){return e.label.indexOf('832 - ')===0})) {
+    window.asEsps.push({codCuerpo:'0590', label:'ZZ - MUSICA FUSION'});
+  }
+  const selT = document.getElementById('asFilterTipo');
+  selT.innerHTML = '<option value="">Todos</option>';
+  [...tipos].sort().forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; selT.appendChild(o); });
+  const selC = document.getElementById('asFilterCuerpo');
+  selC.innerHTML = '<option value="">Todos</option>';
+  [...cuerpos].sort().forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; selC.appendChild(o); });
+  const selCu = document.getElementById('asFilterCurso');
+  selCu.innerHTML = '<option value="">Todos</option>';
+  [...cursos].sort().forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; selCu.appendChild(o); });
+  const selL = document.getElementById('asFilterLocalidad');
+  selL.innerHTML = '<option value="">Todas</option>';
+  [...localidades].sort().forEach(l => { const o = document.createElement('option'); o.value = l; o.textContent = l; selL.appendChild(o); });
+  const selCT = document.getElementById('asFilterCentroTipo');
+  selCT.innerHTML = '<option value="">Todos</option>';
+  [...centrosTipo].sort().forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; selCT.appendChild(o); });
+  const selBil = document.getElementById('asFilterBilingue');
+  selBil.innerHTML = '<option value="">Todos</option><option value="__no">No bilingüe</option>';
+  [...bilTokens].sort().forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; selBil.appendChild(o); });
+  populateSelect('asFilterVacante', [...vacantes].sort());
+  updateAsEspFilter();
+}
+
+function updateAsEspFilter() {
+  const cuerpo = document.getElementById('asFilterCuerpo').value;
+  const filtered = (cuerpo ? window.asEsps.filter(e => e.codCuerpo === cuerpo.split(' - ')[0]) : window.asEsps)
+    .sort((a, b) => a.label < b.label ? -1 : a.label > b.label ? 1 : 0);
+  const sel = document.getElementById('asFilterEsp');
+  sel.innerHTML = '<option value="">Todas</option>';
+  filtered.forEach(e => { const o = document.createElement('option'); o.value = e.label; o.textContent = e.label; sel.appendChild(o); });
+}
+
+document.getElementById('asFilterTipo').onchange = () => applyAsFilters();
+document.getElementById('asFilterCuerpo').onchange = () => { updateAsEspFilter(); applyAsFilters(); };
+document.getElementById('asFilterEsp').onchange = () => applyAsFilters();
+document.getElementById('asFilterCurso').onchange = () => applyAsFilters();
+document.getElementById('asFilterLocalidad').onchange = () => applyAsFilters();
+document.getElementById('asFilterCentroTipo').onchange = () => applyAsFilters();
+document.getElementById('asFilterBilingue').onchange = () => applyAsFilters();
+document.getElementById('asFilterVacante').onchange = () => applyAsFilters();
+document.getElementById('asFilterMatch').onchange = () => applyAsFilters();
+document.getElementById('asFilterOpo').onchange = () => applyAsFilters();
+
+const asSearchInput = document.getElementById('asSearch');
+const asSearchNombreInput = document.getElementById('asSearchNombre');
+asSearchInput.addEventListener('input', () => applyAsFilters());
+asSearchInput.addEventListener('keydown', e => { if (e.key === 'Enter') applyAsFilters(); });
+asSearchNombreInput.addEventListener('input', () => applyAsFilters());
+asSearchNombreInput.addEventListener('keydown', e => { if (e.key === 'Enter') applyAsFilters(); });
+
+function applyAsFilters() {
+  const q = asSearchInput.value.trim().toLowerCase();
+  const qNombre = asSearchNombreInput.value.trim().toLowerCase();
+  const tipo = document.getElementById('asFilterTipo').value;
+  const cuerpo = document.getElementById('asFilterCuerpo').value;
+  const esp = document.getElementById('asFilterEsp').value;
+  const match = document.getElementById('asFilterMatch').value;
+  const opo = document.getElementById('asFilterOpo').value;
+  const curso = document.getElementById('asFilterCurso').value;
+  const loc = document.getElementById('asFilterLocalidad').value;
+  const centroTipo = document.getElementById('asFilterCentroTipo').value;
+  const bilingue = document.getElementById('asFilterBilingue').value;
+  const vacante = document.getElementById('asFilterVacante').value;
+
+  asFiltered = asAll.filter(r => {
+    if (curso && r.curso !== curso) return false;
+    if (tipo && (r._tipo_label || r.tipo) !== tipo) return false;
+    if (cuerpo) {
+      const ck = r._cod_cuerpo ? r._cod_cuerpo + ' - ' + r._nom_cuerpo : '';
+      if (ck !== cuerpo) return false;
+    }
+    if (esp === 'ZZ - MUSICA FUSION') {
+      if (!(r._cod_cuerpo === '0590' && (r.especialidad_codigo === '016' || r.especialidad_codigo === '832'))) return false;
+    } else if (esp) {
+      var _asEk = (r.especialidad_codigo || '') + ' - ' + (r.especialidad_nombre || '');
+      if (_asEk !== esp) return false;
+    }
+    if (loc && r.localidad !== loc) return false;
+    if (centroTipo && r._centro_tipo !== centroTipo) return false;
+    if (bilingue === '__no' && r._bilingue) return false;
+    if (bilingue && bilingue !== '__no' && !(r._bilingue && r._bilingue.includes(bilingue))) return false;
+    if (vacante && r.vacante !== vacante) return false;
+    if (match === 'con' && !r._interino_match) return false;
+    if (match === 'sin' && r._interino_match) return false;
+    if (opo === 'con' && !r.es_seleccionado_oposicion) return false;
+    if (opo === 'sin' && r.es_seleccionado_oposicion) return false;
+    if (qNombre && !(r.nombre || '').toLowerCase().includes(qNombre)) return false;
+    if (q && !((r.centro_nombre || '') + ' ' + (r.centro_codigo || '') + ' ' +
+               (r.funcion_nombre || '') + ' ' + (r.localidad || '') + ' ' + (r.dat || '')).toLowerCase().includes(q))
+      return false;
+    return true;
+  });
+
+  if (!asSortCol) {
+    asFiltered.sort((a, b) => {
+      const la = a.lista || '0', lb = b.lista || '0';
+      const oa = parseInt(a.orden) || 0, ob = parseInt(b.orden) || 0;
+      return la.localeCompare(lb) || oa - ob;
+    });
+  } else {
+    asApplySort();
+  }
+  asPage = 0;
+  renderAs();
+}
+
+let asSortCol = null, asSortAsc = true;
+
+function renderAs() {
+  const start = asPage * AS_PAGE_SIZE;
+  const end = Math.min(start + AS_PAGE_SIZE, asFiltered.length);
+  const items = asFiltered.slice(start, end);
+
+  document.getElementById('asResultCount').textContent = asFiltered.length;
+  const totalPages = Math.ceil(asFiltered.length / AS_PAGE_SIZE) || 1;
+  document.getElementById('asPageInfo').textContent = (asPage + 1) + ' / ' + totalPages;
+  document.getElementById('asPrevPage').disabled = asPage === 0;
+  document.getElementById('asNextPage').disabled = asPage >= totalPages - 1;
+
+  const wrap = document.getElementById('asTableWrap');
+  if (!asFiltered.length) {
+    wrap.innerHTML = '<div class="empty">No se encontraron resultados</div>';
+    return;
+  }
+
+  const arrow = (col) => asSortCol === col ? (asSortAsc ? '▲' : '▼') : '⇅';
+  const sc = (col) => asSortCol === col ? 'sorted' : '';
+  let h = '<table><thead><tr>';
+  h += '<th class="' + sc('nombre') + '" onclick="asSort(\'nombre\')">Docente <span class="sort-arrow">' + arrow('nombre') + '</span></th>';
+  h += '<th>Opos. (cotej.)</th>';
+  h += '<th class="' + sc('_tipo_label') + '" onclick="asSort(\'_tipo_label\')">Tipo <span class="sort-arrow">' + arrow('_tipo_label') + '</span></th>';
+  h += '<th class="' + sc('curso') + '" onclick="asSort(\'curso\')">Curso <span class="sort-arrow">' + arrow('curso') + '</span></th>';
+  h += '<th class="' + sc('_cod_cuerpo') + '" onclick="asSort(\'_cod_cuerpo\')">Cuerpo <span class="sort-arrow">' + arrow('_cod_cuerpo') + '</span></th>';
+  h += '<th class="' + sc('especialidad_codigo') + '" onclick="asSort(\'especialidad_codigo\')">Especialidad <span class="sort-arrow">' + arrow('especialidad_codigo') + '</span></th>';
+  h += '<th>Centro</th>';
+  h += '<th>Tipo</th>';
+  h += '<th>Bilingüe</th>';
+  h += '<th class="' + sc('vacante') + '" onclick="asSort(\'vacante\')">Vac. <span class="sort-arrow">' + arrow('vacante') + '</span></th>';
+  h += '<th class="' + sc('funcion_codigo') + '" onclick="asSort(\'funcion_codigo\')">Función <span class="sort-arrow">' + arrow('funcion_codigo') + '</span></th>';
+  h += '<th class="' + sc('_interino_lista') + '" onclick="asSort(\'_interino_lista\')">L. Int <span class="sort-arrow">' + arrow('_interino_lista') + '</span></th>';
+  h += '<th class="' + sc('_interino_orden') + '" onclick="asSort(\'_interino_orden\')">Ord. Int <span class="sort-arrow">' + arrow('_interino_orden') + '</span></th>';
+  h += '<th class="' + sc('dat') + '" onclick="asSort(\'dat\')">DAT <span class="sort-arrow">' + arrow('dat') + '</span></th>';
+  h += '</tr></thead><tbody>';
+
+  items.forEach(r => {
+    const cuerpo = r._cod_cuerpo ? r._cod_cuerpo + ' - ' + r._nom_cuerpo : '';
+    const esp = r.especialidad_codigo ? r.especialidad_codigo + ' - ' + r.especialidad_nombre : '';
+    const tipoLabel = r._tipo_label || r.tipo;
+    const centro = r.centro_codigo ? r.centro_codigo + ' ' + r.centro_nombre + (r.localidad ? ' (' + r.localidad + ')' : '') : '';
+    const func = r.funcion_codigo ? r.funcion_codigo + ' ' + (r.funcion_nombre || '') : '';
+    h += '<tr>';
+    h += '<td><strong>' + (r.nombre || '') + '</strong></td>';
+    h += '<td>' + (r._tiene_oposicion_func ? '<span class="badge badge-verde">Sí</span>' : '<span style="color:#9ca3af">—</span>') + '</td>';
+    h += '<td>' + tipoLabel + '</td>';
+    h += '<td>' + (r.curso || '') + '</td>';
+    h += '<td>' + cuerpo + '</td>';
+    h += '<td>' + esp + '</td>';
+    h += '<td>' + centro + '</td>';
+    h += '<td>' + (r._centro_tipo || '') + '</td>';
+    h += '<td>' + (r._bilingue ? '<span class="badge badge-verde">' + r._bilingue + '</span>' : '—') + '</td>';
+    h += '<td><span class="badge badge-azul">' + (r.vacante || '') + '</span></td>';
+    h += '<td>' + func + '</td>';
+    h += '<td>' + (r._interino_match ? (r._interino_lista || '') + '-' + (r._interino_subtipo || '') : '<span style="color:#9ca3af">—</span>') + '</td>';
+    h += '<td>' + (r._interino_match ? (r._interino_orden || '') : '<span style="color:#9ca3af">—</span>') + '</td>';
+    h += '<td>' + (r.dat || '') + '</td>';
+    h += '</tr>';
+  });
+  h += '</tbody></table>';
+  wrap.innerHTML = h;
+}
+
+function asApplySort() {
+  asFiltered.sort((a, b) => {
+    if (asSortCol === '_interino_lista') {
+      var va = (a._interino_lista || ''), vb = (b._interino_lista || '');
+      var c = asSortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+      if (c !== 0) return c;
+      var oa = parseInt(a._interino_orden) || 0, ob = parseInt(b._interino_orden) || 0;
+      return asSortAsc ? oa - ob : ob - oa;
+    }
+    if (asSortCol === '_interino_orden') {
+      var oa = parseInt(a._interino_orden) || 0, ob = parseInt(b._interino_orden) || 0;
+      var c = asSortAsc ? oa - ob : ob - oa;
+      if (c !== 0) return c;
+      return (a._interino_lista || '').localeCompare(b._interino_lista || '');
+    }
+    var va = a[asSortCol] ?? '', vb = b[asSortCol] ?? '';
+    if (asSortCol === 'orden') {
+      va = parseInt(va) || 0; vb = parseInt(vb) || 0;
+      return asSortAsc ? va - vb : vb - va;
+    }
+    if (asSortCol === 'lista') {
+      return asSortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+    }
+    if (asSortCol === 'vacante') {
+      return asSortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+    }
+    va = String(va).toLowerCase(); vb = String(vb).toLowerCase();
+    return asSortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+  });
+}
+
+function asSort(col) {
+  if (asSortCol === col) asSortAsc = !asSortAsc;
+  else { asSortCol = col; asSortAsc = true; }
+  asApplySort();
+  asPage = 0;
+  renderAs();
+}
+
+document.getElementById('asPrevPage').onclick = () => { if (asPage > 0) { asPage--; renderAs(); } };
+document.getElementById('asNextPage').onclick = () => { if ((asPage + 1) * AS_PAGE_SIZE < asFiltered.length) { asPage++; renderAs(); } };
+
+// ── Centros Educativos ──
+let ceAll = [], ceFiltered = [], cePage = 0;
+let ceSortCol = null, ceSortAsc = true;
+
+function loadCentros() {
+  fetch('/api/centros')
+    .then(r => r.json())
+    .then(data => {
+      ceAll = data;
+      document.querySelector('#tab-centros .loading').innerHTML = '';
+      buildCeFilters();
+      applyCeFilters();
+      buildCeProfMuniFilter();
+      ceOfertaBuildMuniFilter();
+    });
+  // Populate curso dropdown for profesorado (usa unión funcionarios + asignación)
+  fetch('/api/profesorado/cursos')
+    .then(r => r.json())
+    .then(function(f) {
+      var sel = document.getElementById('ceProfFilterCurso');
+      sel.innerHTML = '<option value="">Selecciona curso</option>';
+      (f.cursos || []).forEach(function(c) {
+        var o = document.createElement('option');
+        o.value = c; o.textContent = c;
+        sel.appendChild(o);
+      });
+    });
+}
+
+function buildCeFilters() {
+  const tipos = new Set(), tits = new Set(), dats = new Set(), munis = new Set(), bilTokens = new Set();
+  ceAll.forEach(s => {
+    if (s.TIPO_ABRV) tipos.add(s.TIPO_ABRV);
+    if (s.TITULARIDAD) tits.add(s.TITULARIDAD);
+    if (s.DAT) dats.add(s.DAT);
+    if (s.MUNICIPIO) munis.add(s.MUNICIPIO);
+    if (s._bilingue) s._bilingue.split(' + ').forEach(t => bilTokens.add(t));
+  });
+  populateSelect('ceFilterTipo', [...tipos].sort());
+  populateSelect('ceFilterTit', [...tits].sort());
+  populateSelect('ceFilterDat', [...dats].sort());
+  populateSelect('ceFilterMuni', [...munis].sort());
+  const selBil = document.getElementById('ceFilterBilingue');
+  selBil.innerHTML = '<option value="">Todos</option><option value="__no">No bilingüe</option>';
+  [...bilTokens].sort().forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; selBil.appendChild(o); });
+}
+
+function applyCeFilters() {
+  const q = document.getElementById('ceSearch').value.trim().toLowerCase();
+  const tipo = document.getElementById('ceFilterTipo').value;
+  const tit = document.getElementById('ceFilterTit').value;
+  const dat = document.getElementById('ceFilterDat').value;
+  const estado = document.getElementById('ceFilterEstado').value;
+  const bilingue = document.getElementById('ceFilterBilingue').value;
+  const muni = document.getElementById('ceFilterMuni').value;
+  ceFiltered = ceAll.filter(s => {
+    if (q) { const n = ((s.CENTRO||'') + ' ' + (s.CODIGO||'')).toLowerCase(); if (!n.includes(q)) return false; }
+    if (tipo && s.TIPO_ABRV !== tipo) return false;
+    if (tit && s.TITULARIDAD !== tit) return false;
+    if (dat && s.DAT !== dat) return false;
+    if (estado && s.SITUACIÓN !== estado) return false;
+    if (bilingue === '__no' && s._bilingue) return false;
+    if (bilingue && bilingue !== '__no' && !(s._bilingue && s._bilingue.includes(bilingue))) return false;
+    if (muni && s.MUNICIPIO !== muni) return false;
+    return true;
+  });
+  cePage = 0;
+  renderCe();
+}
+
+function renderCe() {
+  const start = cePage * CE_PAGE_SIZE;
+  const end = Math.min(start + CE_PAGE_SIZE, ceFiltered.length);
+  const items = ceFiltered.slice(start, end);
+  document.getElementById('ceResultCount').textContent = ceFiltered.length;
+  const totalPages = Math.ceil(ceFiltered.length / CE_PAGE_SIZE) || 1;
+  document.getElementById('cePageInfo').textContent = (cePage + 1) + ' / ' + totalPages;
+  document.getElementById('cePrevPage').disabled = cePage === 0;
+  document.getElementById('ceNextPage').disabled = end >= ceFiltered.length;
+  const h = '<table><thead><tr>' +
+    [{key:'CODIGO', label:'Código'},{key:'CENTRO', label:'Centro'},{key:'TIPO_ABRV', label:'Tipo'},
+     {key:'TITULARIDAD', label:'Titularidad'},{key:'DAT', label:'DAT'},{key:'MUNICIPIO', label:'Municipio'},
+     {key:'SITUACIÓN', label:'Estado'},{key:'_bilingue', label:'Bilingüe'}].map(c =>
+      `<th onclick="ceSort('${c.key}')">${c.label} <span class="sort-arrow">${ceSortCol===c.key?(ceSortAsc?'▲':'▼'):'▽'}</span></th>`
+    ).join('') + '<th>Dirección/Contacto</th></tr></thead><tbody>' +
+    items.map(s => {
+      const dir = [s.DOMICILIO, s.LOCALIDAD, s.MUNICIPIO].filter(Boolean).join(', ');
+      const tel = s.TELEFONO ? ' · ' + s.TELEFONO : '';
+      const bil = s._bilingue ? '<span class="bil-badge">' + s._bilingue + '</span>' : '<span class="bil-badge bil-no">No bilingüe</span>';
+      const cod = s.CODIGO || '';
+      return '<tr style="cursor:pointer" onclick="selectCentro(\'' + cod + '\',\'' + esc(s.CENTRO || cod) + '\')"><td>' + cod + '</td><td><strong>' + (s.CENTRO||'') + '</strong></td><td>' + (s.TIPO_ABRV||'') +
+        '</td><td>' + (s.TITULARIDAD||'') + '</td><td>' + (s.DAT||'') + '</td><td>' + (s.MUNICIPIO||'') +
+        '</td><td>' + (s.SITUACIÓN||'') + '</td><td>' + bil + '</td><td style="font-size:.78rem;color:#6b7280">' + dir + tel +
+        '</td></tr>';
+    }).join('') + '</tbody></table>';
+  document.getElementById('ceTableWrap').innerHTML = h;
+}
+
+function ceApplySort(key) {
+  const dir = ceSortCol === key ? !ceSortAsc : true;
+  ceSortCol = key; ceSortAsc = dir;
+  ceFiltered.sort((a, b) => {
+    const va = (a[key]||'').toString().toLowerCase();
+    const vb = (b[key]||'').toString().toLowerCase();
+    return va < vb ? (dir ? -1 : 1) : va > vb ? (dir ? 1 : -1) : 0;
+  });
+  renderCe();
+}
+
+function ceSort(col) { ceApplySort(col); }
+
+function ceSwitchSubtab(name) {
+  document.querySelectorAll('.ce-subtab').forEach(function(b) { b.classList.remove('active'); });
+  document.querySelectorAll('.ce-subtab-content').forEach(function(d) { d.style.display = 'none'; });
+  var tabs = {listado:'ceSubtabListado', profesorado:'ceSubtabProfesorado', oferta:'ceSubtabOferta'};
+  if (tabs[name]) {
+    document.getElementById(tabs[name]).style.display = '';
+    var btns = document.querySelectorAll('.ce-subtab');
+    var idx = ['listado','profesorado','oferta'].indexOf(name);
+    if (btns[idx]) btns[idx].classList.add('active');
+    if (name === 'oferta') {
+      if (ceOfertaAll.length) ceOfertaRenderTable();
+    }
+  }
+}
+
+document.getElementById('cePrevPage').onclick = () => { if (cePage > 0) { cePage--; renderCe(); } };
+document.getElementById('ceNextPage').onclick = () => { if ((cePage + 1) * CE_PAGE_SIZE < ceFiltered.length) { cePage++; renderCe(); } };
+
+document.getElementById('ceFilterTipo').onchange = () => applyCeFilters();
+document.getElementById('ceFilterTit').onchange = () => applyCeFilters();
+document.getElementById('ceFilterDat').onchange = () => applyCeFilters();
+document.getElementById('ceFilterEstado').onchange = () => applyCeFilters();
+document.getElementById('ceFilterBilingue').onchange = () => applyCeFilters();
+document.getElementById('ceFilterMuni').onchange = () => applyCeFilters();
+const ceSearchInput = document.getElementById('ceSearch');
+ceSearchInput.addEventListener('input', () => applyCeFilters());
+ceSearchInput.addEventListener('keydown', e => { if (e.key === 'Enter') applyCeFilters(); });
+
+let ceProfAll = [], ceProfPage = 0, ceProfCodigo = '';
+const CE_PROF_PAGE_SIZE = 50;
+
+function buildCeProfMuniFilter() {
+  var munis = new Set();
+  (ceAll || []).forEach(function(s) { if (s.MUNICIPIO) munis.add(s.MUNICIPIO); });
+  var sel = document.getElementById('ceProfFilterMuni');
+  sel.innerHTML = '<option value="">Todos</option>';
+  Array.from(munis).sort().forEach(function(m) {
+    var o = document.createElement('option');
+    o.value = m; o.textContent = m;
+    sel.appendChild(o);
+  });
+}
+
+function selectCentro(codigo, nombre) {
+  ceProfCodigo = codigo;
+  document.getElementById('ceProfesoresCentro').textContent = nombre;
+  document.getElementById('ceProfFilterCentro').value = nombre;
+  ceProfAll = [];
+  ceProfPage = 0;
+  buildCeProfFilters();
+  ceSwitchSubtab('profesorado');
+  // Auto-cargar el primer curso disponible
+  var sel = document.getElementById('ceProfFilterCurso');
+  if (sel.options.length > 1) {
+    sel.selectedIndex = 1;
+    loadCeProfesores();
+  } else {
+    document.getElementById('ceProfesoresWrap').innerHTML = '<div class="empty">Selecciona un curso arriba para ver los profesores</div>';
+  }
+}
+
+function loadCeProfesores() {
+  var curso = document.getElementById('ceProfFilterCurso').value;
+  if (!curso || !ceProfCodigo) return;
+  document.getElementById('ceProfesoresWrap').innerHTML = '<div class="loading">Cargando profesores...</div>';
+  fetch('/api/centros/profesores?codigo=' + encodeURIComponent(ceProfCodigo) + '&curso=' + encodeURIComponent(curso))
+    .then(r => { console.log('ceProf fetch status:', r.status); return r.json(); })
+    .then(data => { console.log('ceProf loaded:', data.length);
+      ceProfAll = data;
+      ceProfPage = 0;
+      buildCeProfFilters();
+      renderCeProfesores();
+    })
+    .catch(e => {
+      document.getElementById('ceProfesoresWrap').innerHTML = '<div class="empty">Error al cargar profesores</div>';
+    });
+}
+
+function buildCeProfFilters() {
+  var espSet = new Set();
+  ceProfAll.forEach(function(r) { if (r.especialidad) espSet.add(r.especialidad); });
+  var sel = document.getElementById('ceProfFilterEsp');
+  sel.innerHTML = '<option value="">Todas las especialidades</option>';
+  Array.from(espSet).sort().forEach(function(e) {
+    var o = document.createElement('option');
+    o.value = e; o.textContent = e;
+    sel.appendChild(o);
+  });
+  sel.value = '';
+  document.getElementById('ceProfSearch').value = '';
+}
+
+function getFilteredCeProf() {
+  var esp = document.getElementById('ceProfFilterEsp').value;
+  var q = document.getElementById('ceProfSearch').value.trim().toLowerCase();
+  return ceProfAll.filter(function(r) {
+    if (esp && r.especialidad !== esp) return false;
+    if (q && !r.nombre.toLowerCase().includes(q) && !(r.dni || '').toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function renderCeProfesores() {
+  var filtered = getFilteredCeProf();
+  var start = ceProfPage * CE_PROF_PAGE_SIZE;
+  var end = Math.min(start + CE_PROF_PAGE_SIZE, filtered.length);
+  var items = filtered.slice(start, end);
+  document.getElementById('ceProfesoresCount').textContent = filtered.length;
+  var totalPages = Math.ceil(filtered.length / CE_PROF_PAGE_SIZE) || 1;
+  document.getElementById('ceProfPageInfo').textContent = (ceProfPage + 1) + ' / ' + totalPages;
+  document.getElementById('ceProfPrevPage').disabled = ceProfPage === 0;
+  document.getElementById('ceProfNextPage').disabled = end >= filtered.length;
+
+  var wrap = document.getElementById('ceProfesoresWrap');
+  if (!items.length) {
+    wrap.innerHTML = '<div class="empty">No se encontraron profesores para este centro en este curso</div>';
+    return;
+  }
+  var h = '<table><thead><tr><th>Nombre</th><th>DNI</th><th>Cuerpo</th><th>Especialidad</th><th>Fuente</th></tr></thead><tbody>';
+  items.forEach(function(r) {
+    var badge = r.tipo === 'asignacion' ? '<span class="badge badge-verde">Asignación</span>' : '<span class="badge badge-azul">Traslados</span>';
+    h += '<tr>';
+    h += '<td><strong>' + esc(r.nombre) + '</strong></td>';
+    h += '<td>' + formatDNI(r.dni) + '</td>';
+    h += '<td>' + esc(r.cuerpo) + '</td>';
+    h += '<td>' + esc(r.especialidad) + '</td>';
+    h += '<td>' + badge + '</td>';
+    h += '</tr>';
+  });
+  h += '</tbody></table>';
+  wrap.innerHTML = h;
+}
+
+document.getElementById('ceProfPrevPage').onclick = function() { if (ceProfPage > 0) { ceProfPage--; renderCeProfesores(); } };
+document.getElementById('ceProfNextPage').onclick = function() { if ((ceProfPage + 1) * CE_PROF_PAGE_SIZE < getFilteredCeProf().length) { ceProfPage++; renderCeProfesores(); } };
+document.getElementById('ceProfFilterCurso').onchange = function() { loadCeProfesores(); };
+document.getElementById('ceProfFilterEsp').onchange = function() { ceProfPage = 0; renderCeProfesores(); };
+document.getElementById('ceProfSearch').oninput = function() { ceProfPage = 0; renderCeProfesores(); };
+document.getElementById('ceProfFilterMuni').onchange = function() {
+  document.getElementById('ceProfFilterCentro').value = '';
+  ceProfCodigo = '';
+  document.getElementById('ceProfesoresCentro').textContent = '';
+  document.getElementById('ceProfesoresWrap').innerHTML = '<div class="empty">Selecciona un centro para ver sus profesores</div>';
+  ceProfAll = [];
+  renderCeProfesores();
+};
+
+// Centro autocomplete for profesorado
+var ceProfCentroInput = document.getElementById('ceProfFilterCentro');
+var ceProfCentroSuggest = document.getElementById('ceProfCentroSuggest');
+var ceProfCentroTimer;
+ceProfCentroInput.addEventListener('input', function() {
+  clearTimeout(ceProfCentroTimer);
+  var v = this.value.trim().toLowerCase();
+  if (v.length < 2) { ceProfCentroSuggest.style.display = 'none'; return; }
+  ceProfCentroTimer = setTimeout(function() {
+    var matches = (ceAll || []).filter(function(s) {
+      return (s.CENTRO || '').toLowerCase().includes(v) || (s.CODIGO || '').includes(v);
+    }).slice(0, 20);
+
+    ceProfCentroSuggest.innerHTML = '';
+    if (matches.length) {
+      matches.forEach(function(s) {
+        var d = document.createElement('div');
+        d.textContent = s.CODIGO + ' — ' + (s.CENTRO || '') + ' (' + (s.MUNICIPIO || '') + ')';
+        d.onclick = function() {
+          ceProfCentroInput.value = s.CENTRO || s.CODIGO;
+          ceProfCentroSuggest.style.display = 'none';
+          selectCentro(s.CODIGO, s.CENTRO || s.CODIGO);
+        };
+        ceProfCentroSuggest.appendChild(d);
+      });
+      ceProfCentroSuggest.style.display = 'block';
+    } else {
+      ceProfCentroSuggest.style.display = 'none';
+    }
+  }, 200);
+});
+ceProfCentroInput.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') {
+    ceProfCentroSuggest.style.display = 'none';
+    var v = this.value.trim().toLowerCase();
+    var matches = (ceAll || []).filter(function(s) {
+      return (s.CENTRO || '').toLowerCase().includes(v) || (s.CODIGO || '').includes(v);
+    });
+    if (matches.length === 1) {
+      selectCentro(matches[0].CODIGO, matches[0].CENTRO || matches[0].CODIGO);
+    }
+  }
+});
+document.addEventListener('click', function(e) {
+  if (!document.getElementById('ceSubtabProfesorado').contains(e.target)) return;
+  var group = ceProfCentroInput.closest('.search-group');
+  if (group && !group.contains(e.target)) ceProfCentroSuggest.style.display = 'none';
+});
+
+// ── Oferta educativa ──
+var ceOfertaAll = [];
+var ceOfertaMode = '';
+
+function ceOfertaBuildFilters(data) {
+  var famSel = document.getElementById('ceOfertaFilterFamilia');
+  var modSel = document.getElementById('ceOfertaFilterModalidad');
+  var turnoSel = document.getElementById('ceOfertaFilterTurno');
+  famSel.innerHTML = '<option value="">Todas</option>';
+  modSel.innerHTML = '<option value="">Todas</option>';
+  turnoSel.innerHTML = '<option value="">Todos</option>';
+  var famSet = new Set(), modSet = new Set(), turnoSet = new Set();
+  data.forEach(function(r) {
+    if (r.familia_profesional) famSet.add(r.familia_profesional);
+    if (r.modalidad) modSet.add(r.modalidad);
+    if (r.turno) turnoSet.add(r.turno);
+  });
+  Array.from(famSet).sort().forEach(function(f) {
+    var o = document.createElement('option');
+    o.value = f; o.textContent = f; famSel.appendChild(o);
+  });
+  Array.from(modSet).sort().forEach(function(m) {
+    var o = document.createElement('option');
+    o.value = m; o.textContent = m; modSel.appendChild(o);
+  });
+  Array.from(turnoSet).sort().forEach(function(t) {
+    var o = document.createElement('option');
+    o.value = t; o.textContent = t; turnoSel.appendChild(o);
+  });
+}
+
+function ceOfertaRenderTable() {
+  var wrap = document.getElementById('ceOfertaWrap');
+  var familia = document.getElementById('ceOfertaFilterFamilia').value;
+  var modalidad = document.getElementById('ceOfertaFilterModalidad').value;
+  var turno = document.getElementById('ceOfertaFilterTurno').value;
+  var nivel = document.getElementById('ceOfertaFilterNivel').value;
+  var muni = document.getElementById('ceOfertaFilterMuni').value;
+  var filtered = ceOfertaAll;
+  if (familia) filtered = filtered.filter(function(r) { return r.familia_profesional === familia; });
+  if (modalidad) filtered = filtered.filter(function(r) { return (r.modalidad || '') === modalidad; });
+  if (turno) filtered = filtered.filter(function(r) { return (r.turno || '') === turno; });
+  if (nivel) filtered = filtered.filter(function(r) { return r.nivel === nivel; });
+  if (muni) filtered = filtered.filter(function(r) { return (r.municipio_nombre || r.municipio || '') === muni; });
+  filtered.sort(function(a, b) {
+    var af = (a.familia_profesional || '').toLowerCase(), bf = (b.familia_profesional || '').toLowerCase();
+    if (af !== bf) return af < bf ? -1 : 1;
+    var an = (a.nivel || ''), bn = (b.nivel || '');
+    if (an !== bn) return an < bn ? -1 : 1;
+    var ac = (a.ciclo_nombre || '').toLowerCase(), bc = (b.ciclo_nombre || '').toLowerCase();
+    return ac < bc ? -1 : ac > bc ? 1 : 0;
+  });
+  if (!filtered.length) {
+    wrap.innerHTML = '<div class="empty" style="padding:40px;text-align:center;color:#6b7280">No hay resultados con los filtros seleccionados</div>';
+    return;
+  }
+  if (ceOfertaMode === 'centro') {
+    var h = '<table><thead><tr><th>Familia profesional</th><th>Tipo</th><th>Ciclo formativo</th><th>Código</th><th>Modalidad</th><th>Turno</th><th>Grupos</th></tr></thead><tbody>';
+    filtered.forEach(function(r) {
+      h += '<tr><td><strong>' + esc(r.familia_profesional) + '</strong></td><td>' + esc(r.nivel) + '</td><td>' + esc(r.ciclo_nombre) + '</td><td>' + esc(r.ciclo_codigo) + '</td><td>' + esc(r.modalidad) + '</td><td>' + esc(r.turno) + '</td><td>' + esc(r.grupos) + '</td></tr>';
+    });
+    h += '</tbody></table>';
+    wrap.innerHTML = h;
+  } else {
+    var h = '<table><thead><tr><th>Centro</th><th>Municipio</th><th>Familia profesional</th><th>Tipo</th><th>Ciclo formativo</th><th>Código</th><th>Modalidad</th><th>Turno</th><th>Grupos</th></tr></thead><tbody>';
+    filtered.forEach(function(r) {
+      var cLink = '<a href="#" onclick="ceOfertaSelectCentro(\'' + esc(r.codigo_centro) + '\',\'' + esc(r.centro_nombre || '') + '\');return false" style="color:#2563eb;text-decoration:none">' + esc(r.centro_nombre || '') + '</a>';
+      h += '<tr><td>' + cLink + '</td><td>' + esc(r.municipio_nombre || '') + '</td><td><strong>' + esc(r.familia_profesional) + '</strong></td><td>' + esc(r.nivel) + '</td><td>' + esc(r.ciclo_nombre) + '</td><td>' + esc(r.ciclo_codigo) + '</td><td>' + esc(r.modalidad) + '</td><td>' + esc(r.turno) + '</td><td>' + esc(r.grupos) + '</td></tr>';
+    });
+    h += '</tbody></table>';
+    wrap.innerHTML = h;
+  }
+}
+
+function ceOfertaSelectCentro(codigo, nombre) {
+  ceOfertaMode = 'centro';
+  document.getElementById('ceOfertaHeading').innerHTML = 'Oferta educativa — ' + esc(nombre);
+  var wrap = document.getElementById('ceOfertaWrap');
+  wrap.innerHTML = '<div class="loading">Cargando oferta educativa...</div>';
+  fetch('/api/oferta?codigo=' + encodeURIComponent(codigo))
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      ceOfertaAll = data;
+      ceOfertaBuildFilters(data);
+      ceOfertaRenderTable();
+    })
+    .catch(function() {
+      wrap.innerHTML = '<div class="empty" style="padding:40px;text-align:center;color:#6b7280">Error al cargar la oferta educativa</div>';
+    });
+}
+
+function ceOfertaDoSearch() {
+  var q = document.getElementById('ceOfertaSearch').value.trim();
+  if (q.length < 3) return;
+  ceOfertaMode = 'search';
+  document.getElementById('ceOfertaHeading').innerHTML = 'Buscando...';
+  var wrap = document.getElementById('ceOfertaWrap');
+  wrap.innerHTML = '<div class="loading">Buscando...</div>';
+  fetch('/api/oferta-search?q=' + encodeURIComponent(q))
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      ceOfertaAll = data.results;
+      document.getElementById('ceOfertaHeading').innerHTML = 'Resultados de búsqueda — ' + data.total + ' resultados';
+      ceOfertaBuildFilters(data.results);
+      ceOfertaRenderTable();
+    })
+    .catch(function() {
+      wrap.innerHTML = '<div class="empty" style="padding:40px;text-align:center;color:#6b7280">Error en la búsqueda</div>';
+    });
+}
+
+// Build municipio filter from all centros
+function ceOfertaBuildMuniFilter() {
+  var munis = new Set();
+  (ceAll || []).forEach(function(s) { if (s.MUNICIPIO) munis.add(s.MUNICIPIO); });
+  var sel = document.getElementById('ceOfertaFilterMuni');
+  sel.innerHTML = '<option value="">Todos</option>';
+  Array.from(munis).sort().forEach(function(m) {
+    var o = document.createElement('option');
+    o.value = m; o.textContent = m; sel.appendChild(o);
+  });
+}
+
+// Wire filter changes
+document.getElementById('ceOfertaFilterMuni').onchange = function() { ceOfertaRenderTable(); };
+document.getElementById('ceOfertaFilterFamilia').onchange = function() { ceOfertaRenderTable(); };
+document.getElementById('ceOfertaFilterModalidad').onchange = function() { ceOfertaRenderTable(); };
+document.getElementById('ceOfertaFilterTurno').onchange = function() { ceOfertaRenderTable(); };
+document.getElementById('ceOfertaFilterNivel').onchange = function() { ceOfertaRenderTable(); };
+
+// Search autocomplete (ciclos + centros)
+var ceOfertaSearchInput = document.getElementById('ceOfertaSearch');
+var ceOfertaSearchSuggest = document.getElementById('ceOfertaSearchSuggest');
+var ceOfertaSearchTimer;
+ceOfertaSearchInput.addEventListener('input', function() {
+  clearTimeout(ceOfertaSearchTimer);
+  var v = this.value.trim();
+  if (v.length < 2) { ceOfertaSearchSuggest.style.display = 'none'; return; }
+  ceOfertaSearchTimer = setTimeout(function() {
+    fetch('/api/oferta-suggest?q=' + encodeURIComponent(v))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        ceOfertaSearchSuggest.innerHTML = '';
+        if (data.length) {
+          data.forEach(function(item) {
+            var d = document.createElement('div');
+            if (item.tipo === 'ciclo') {
+              d.innerHTML = '<span style="color:#2563eb">Ciclo:</span> ' + esc(item.label);
+              d.onclick = function() {
+                ceOfertaSearchInput.value = item.label;
+                ceOfertaSearchSuggest.style.display = 'none';
+                ceOfertaDoSearch();
+              };
+            } else {
+              d.innerHTML = '<span style="color:#059669">Centro:</span> ' + esc(item.label);
+              d.onclick = function() {
+                ceOfertaSearchInput.value = item.label;
+                ceOfertaSearchSuggest.style.display = 'none';
+                ceOfertaSelectCentro(item.codigo, item.nombre);
+              };
+            }
+            ceOfertaSearchSuggest.appendChild(d);
+          });
+          ceOfertaSearchSuggest.style.display = 'block';
+        } else {
+          ceOfertaSearchSuggest.style.display = 'none';
+        }
+      })
+      .catch(function() { ceOfertaSearchSuggest.style.display = 'none'; });
+  }, 200);
+});
+ceOfertaSearchInput.addEventListener('blur', function() {
+  setTimeout(function() { ceOfertaSearchSuggest.style.display = 'none'; }, 200);
+});
+ceOfertaSearchInput.addEventListener('focus', function() {
+  if (ceOfertaSearchSuggest.children.length) ceOfertaSearchSuggest.style.display = 'block';
+});
+ceOfertaSearchInput.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') ceOfertaDoSearch();
+});
+
+/* Oposiciones tab removed. Original JS:
+let opAll = [], opFiltered = [], opPage = 0;
+let opSortCol = null, opSortAsc = true;
+
+function loadOposiciones() { ... }
+function renderOpStats() { ... }
+function buildOpFilters() { ... }
+function updateOpEspFilter() { ... }
+function applyOpFilters() { ... }
+function renderOp() { ... }
+function opApplySort() { ... }
+function opSort(col) { ... }
+(Handlers for opFilterConv, opFilterCuerpo, opFilterEsp, opFilterAcceso, opSearch)
+*/
+
+function populateSelect2(id, opts) {
+  const sel = document.getElementById(id);
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Todos</option>';
+  opts.forEach(o => {
+    const e = document.createElement('option');
+    e.value = o;
+    e.textContent = o;
+    sel.appendChild(e);
+  });
+}
+
+// ── Listas de Interinos (server-side pagination) ──
+let liPage = 1, liTotal = 0, liTotalPages = 1;
+let liFiltersLoaded = false;
+
+function loadListas() {
+  try {
+  if (!liFiltersLoaded) {
+    fetch('/api/listas-interinos/filters')
+      .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(data => {
+        liFiltersLoaded = true;
+        const cursos = new Set();
+        const selC = document.getElementById('liFilterCuerpo');
+        const selCu = document.getElementById('liFilterCurso');
+        selC.innerHTML = '<option value="">Todos</option>';
+        selCu.innerHTML = '<option value="">Todos</option>';
+        data.cuerpos.forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; selC.appendChild(o); });
+        if (data.cursos) {
+          data.cursos.sort().forEach(c => {
+            if (!cursos.has(c)) { cursos.add(c); const o = document.createElement('option'); o.value = c; o.textContent = c; selCu.appendChild(o); }
+          });
+        }
+        window.liEsps = data.especialidades;
+        var ld = document.querySelector('#tab-listas .loading');
+        if (ld) ld.innerHTML = ''; else document.getElementById('liTableWrap').innerHTML = '<div class="empty" style="color:red">ERROR: #tab-listas .loading not found</div>';
+        fetchLiPage(1);
+      })
+      .catch(function(err) {
+        document.getElementById('liTableWrap').innerHTML = '<div class="empty" style="color:red">Error filtros: ' + (err.message||err) + '</div>';
+      });
+  } else {
+    fetchLiPage(1);
+  }
+  } catch(e) { document.getElementById('liTableWrap').innerHTML = '<div class="empty" style="color:red">Error loadListas: ' + e.message + '</div>'; }
+}
+
+function refreshInterinos() {
+  const btn = document.getElementById('btnRefreshLi');
+  btn.textContent = '⏳ Descargando...';
+  btn.disabled = true;
+  fetch('/api/refresh-interinos', { method: 'POST' })
+    .then(r => r.json())
+    .then(res => {
+      btn.textContent = '✅ ' + res.total + ' registros (' + res.curso + ')';
+      setTimeout(() => { btn.textContent = '🔄 Actualizar listas'; btn.disabled = false; }, 3000);
+      liFiltersLoaded = false;
+      loadListas();
+    })
+    .catch(() => {
+      btn.textContent = '❌ Error';
+      setTimeout(() => { btn.textContent = '🔄 Actualizar listas'; btn.disabled = false; }, 3000);
+    });
+}
+
+function refreshSustituciones(){})
+    .then(r => r.json())
+    .then(res => {
+      const msg = res.nuevos > 0
+        ? '✅ ' + res.nuevos + ' nuevas sustituciones añadidas (' + res.curso + ', total: ' + res.total_actual + ')'
+        : 'ℹ️ Sin registros nuevos (' + res.curso + ', total: ' + res.total_actual + ')';
+      btn.textContent = msg;
+      setTimeout(() => { btn.textContent = '🔄 Actualizar'; btn.disabled = false; }, 3000);
+      // Reload data
+      fetch('/api/data').then(r => r.json()).then(data => {
+        allData = data;
+        buildCursoFilter();
+        buildFilters();
+        applyFilters();
+        renderStats();
+      });
+    })
+    .catch(() => {
+      btn.textContent = '❌ Error';
+      setTimeout(() => { btn.textContent = '🔄 Actualizar'; btn.disabled = false; }, 3000);
+    });
+}
+
+function fetchLiPage(page) {
+  console.log('fetchLiPage called, page=' + page);
+  liPage = page;
+  const q = document.getElementById('liSearchNombre').value.trim();
+  const curso = document.getElementById('liFilterCurso').value;
+  const cuerpo = document.getElementById('liFilterCuerpo').value;
+  const esp = document.getElementById('liFilterEsp').value;
+  const lista = document.getElementById('liFilterLista').value;
+  const subtipo = document.getElementById('liSearchSubtipo').value.trim();
+  const hab = document.getElementById('liFilterHab').value;
+  const estados = [];
+  if (document.getElementById('liFilterEstLibre').checked) estados.push('Libre');
+  if (document.getElementById('liFilterEstOcupado').checked) estados.push('Ocupado');
+  if (document.getElementById('liFilterEstBaja').checked) estados.push('Baja');
+  if (document.getElementById('liFilterEstBajaT').checked) estados.push('Baja Temporal');
+
+  let url = '/api/listas-interinos?page=' + page + '&pageSize=100';
+  if (q) url += '&q=' + encodeURIComponent(q);
+  if (curso) url += '&curso=' + encodeURIComponent(curso);
+  if (cuerpo) url += '&cuerpo=' + encodeURIComponent(cuerpo);
+  if (esp) url += '&esp=' + encodeURIComponent(esp);
+  if (lista) url += '&lista=' + lista;
+  if (subtipo) url += '&subtipo=' + subtipo;
+  if (hab) url += '&hab=' + hab;
+  if (estados.length < 4) url += '&estado=' + encodeURIComponent(estados.join(','));
+
+  const wrap = document.getElementById('liTableWrap');
+  wrap.innerHTML = '<div class="loading">Cargando...</div>';
+
+  fetch(url)
+    .then(r => r.json())
+    .then(data => {
+      liTotal = data.total;
+      liTotalPages = Math.ceil(data.total / 50) || 1;
+      document.getElementById('liResultCount').textContent = data.total;
+      document.getElementById('liPageInfo').textContent = liPage + ' / ' + liTotalPages;
+      document.getElementById('liPrevPage').disabled = liPage <= 1;
+      document.getElementById('liNextPage').disabled = liPage >= liTotalPages;
+
+      if (!data.records.length) {
+        wrap.innerHTML = '<div class="empty">No se encontraron resultados</div>';
+        return;
+      }
+
+      let h = '<table><thead><tr>';
+      h += '<th>Ord.F.</th><th>Orden</th><th>Docente</th><th>Cuerpo</th><th>Especialidad</th><th>Estado</th><th>Lista</th><th>Subtipo</th><th>Puntos</th><th>Exp</th><th>Hab</th>';
+      h += '</tr></thead><tbody>';
+
+      data.records.forEach(r => {
+        const nombre = [r.papellid, r.sapellid, r.nombre].filter(Boolean).join(' ');
+        const cuerpo = r.codcuerpocfunc ? r.codcuerpocfunc + ' - ' + (r._nom_cuerpo || '') : '—';
+        const esp = r.codespcfunc ? r.codespcfunc + ' - ' + (r.espcfunc || '') : '';
+        const badgeHab = r.habilitado === 'S' ? 'badge-verde' : 'badge-rojo';
+        const badgeEstado = r.estado === 'Libre' ? 'badge-verde' : r.estado === 'Ocupado' ? 'badge-amarillo' : r.estado === 'Baja' ? 'badge-rojo' : r.estado === 'Baja Temporal' ? 'badge-azul' : '';
+        h += '<tr>';
+        h += '<td>' + (r.orden_filtrado || '') + '</td>';
+        h += '<td>' + (r.orden || '') + '</td>';
+        h += '<td><strong>' + nombre + '</strong></td>';
+        h += '<td>' + cuerpo + '</td>';
+        h += '<td>' + esp + '</td>';
+        h += '<td>' + (r.estado ? '<span class="badge ' + badgeEstado + '">' + r.estado + '</span>' : '—') + '</td>';
+        h += '<td>' + (r.tipolista || '') + '</td>';
+        h += '<td>' + (r.subtipo || '') + '</td>';
+        h += '<td>' + (r.puntos || '') + '</td>';
+        h += '<td>' + (r.exp || '') + '</td>';
+        h += '<td><span class="badge ' + badgeHab + '">' + (r.habilitado || '') + '</span></td>';
+        h += '</tr>';
+      });
+      h += '</tbody></table>';
+      wrap.innerHTML = h;
+    })
+    .catch(function(err) {
+      wrap.innerHTML = '<div class="empty" style="padding:40px;text-align:center;color:#dc2626">Error al cargar datos: ' + (err&&err.message?err.message:err) + '</div>';
+    });
+}
+
+function updateLiEspFilter() {
+  const cuerpo = document.getElementById('liFilterCuerpo').value;
+  const filtered = (cuerpo ? window.liEsps.filter(e => e.codCuerpo === cuerpo.split(' - ')[0]) : window.liEsps)
+    .sort((a, b) => a.label < b.label ? -1 : a.label > b.label ? 1 : 0);
+  const sel = document.getElementById('liFilterEsp');
+  sel.innerHTML = '<option value="">Todas</option>';
+  filtered.forEach(e => { const o = document.createElement('option'); o.value = e.label; o.textContent = e.label; sel.appendChild(o); });
+}
+
+document.getElementById('liFilterCurso').onchange = () => fetchLiPage(1);
+document.getElementById('liFilterCuerpo').onchange = () => { updateLiEspFilter(); fetchLiPage(1); };
+document.getElementById('liFilterEsp').onchange = () => fetchLiPage(1);
+document.getElementById('liFilterLista').onchange = () => fetchLiPage(1);
+document.getElementById('liFilterHab').onchange = () => fetchLiPage(1);
+['liFilterEstLibre','liFilterEstOcupado','liFilterEstBaja','liFilterEstBajaT'].forEach(id => {
+  document.getElementById(id).onchange = () => fetchLiPage(1);
+});
+document.getElementById('liSearchNombre').addEventListener('input', () => fetchLiPage(1));
+document.getElementById('liSearchNombre').addEventListener('keydown', e => { if (e.key === 'Enter') fetchLiPage(1); });
+document.getElementById('liSearchSubtipo').addEventListener('input', () => fetchLiPage(1));
+document.getElementById('liSearchSubtipo').addEventListener('keydown', e => { if (e.key === 'Enter') fetchLiPage(1); });
+
+function liPrevPage() { if (liPage > 1) fetchLiPage(liPage - 1); }
+function liNextPage() { if (liPage < liTotalPages) fetchLiPage(liPage + 1); }
+
+document.getElementById('liPrevPage').onclick = liPrevPage;
+document.getElementById('liNextPage').onclick = liNextPage;
+
+// ── Funcionarios (participantes concurso de traslados) ──
+const FN_PAGE_SIZE = 50;
+let fnAll = [];
+let fnFiltered = [];
+let fnPage = 0;
+
+function loadFuncionarios() {
+  fetch('/api/funcionarios?all=1')
+    .then(r => r.json())
+    .then(data => {
+      fnAll = data.records || [];
+      buildFnFilters();
+      applyFnFilters();
+    });
+  fetch('/api/funcionarios/filters')
+    .then(r => r.json())
+    .then(f => {
+      populateSelect2('fnFilterCuerpo', f.cuerpos.map(c => c.code));
+      const fnCuerpoSel = document.getElementById('fnFilterCuerpo');
+      f.cuerpos.forEach(c => {
+        const opt = fnCuerpoSel.querySelector('option[value="' + c.code + '"]');
+        if (opt) opt.textContent = c.label;
+      });
+      populateSelect2('fnFilterCurso', f.cursos);
+      populateSelect2('fnFilterConv', f.convocatorias);
+      populateSelect2('fnFilterAcceso', f.accesos);
+    });
+}
+
+function buildFnFilters() {}
+
+function applyFnFilters() {
+  const q = document.getElementById('fnSearch').value.trim().toLowerCase();
+  const cuerpo = document.getElementById('fnFilterCuerpo').value;
+  const curso = document.getElementById('fnFilterCurso').value;
+  const conv = document.getElementById('fnFilterConv').value;
+  const acceso = document.getElementById('fnFilterAcceso').value;
+
+  fnFiltered = fnAll.filter(r => {
+    if (q && !r.nombre.toLowerCase().includes(q) && !(r.dni || '').toLowerCase().includes(q)) return false;
+    if (cuerpo && r.cuerpo !== cuerpo) return false;
+    if (curso && r.curso !== curso) return false;
+    if (conv && r._convocatoria_opo !== conv) return false;
+    if (acceso && r._acceso_opo !== acceso) return false;
+    return true;
+  });
+  fnPage = 0;
+  renderFn();
+  renderFnStats();
+}
+
+function renderFnStats() {
+  const total = fnFiltered.length;
+  const byCurso = {};
+  const byConv = {};
+  fnFiltered.forEach(r => {
+    byCurso[r.curso] = (byCurso[r.curso] || 0) + 1;
+    if (r._convocatoria_opo) byConv[r._convocatoria_opo] = (byConv[r._convocatoria_opo] || 0) + 1;
+  });
+  let html = Object.entries(byCurso).map(([k, v]) =>
+    '<div class="stat-card"><div class="label">' + k + '</div><div class="value">' + v.toLocaleString() + '</div></div>'
+  ).join('');
+  Object.entries(byConv).forEach(([k, v]) => {
+    html += '<div class="stat-card"><div class="label">Opo. ' + k + '</div><div class="value">' + v.toLocaleString() + '</div></div>';
+  });
+  html += '<div class="stat-card"><div class="label">Total registros</div><div class="value">' + total.toLocaleString() + '</div></div>';
+  document.getElementById('fnStats').innerHTML = html;
+}
+
+function renderFn() {
+  const start = fnPage * FN_PAGE_SIZE;
+  const end = Math.min(start + FN_PAGE_SIZE, fnFiltered.length);
+  const items = fnFiltered.slice(start, end);
+
+  document.getElementById('fnResultCount').textContent = fnFiltered.length;
+  const totalPages = Math.ceil(fnFiltered.length / FN_PAGE_SIZE) || 1;
+  document.getElementById('fnPageInfo').textContent = (fnPage + 1) + ' / ' + totalPages;
+  document.getElementById('fnPrevPage').disabled = fnPage === 0;
+  document.getElementById('fnNextPage').disabled = fnPage >= totalPages - 1;
+
+  const wrap = document.getElementById('fnTableWrap');
+  if (!items.length) {
+    wrap.innerHTML = '<div class="empty">No se encontraron registros</div>';
+    return;
+  }
+
+  let h = '<table><thead><tr><th>Curso</th><th>Cuerpo</th><th>Espec.</th><th>Nombre</th><th>DNI</th><th>Año Opo.</th><th>Pts Opo.</th><th>Total pts</th><th>Conv.</th><th>Acceso</th><th>Pts Opo.(2)</th><th>Ord.</th><th>Res.</th><th>Origen</th><th>Destino anterior</th><th>Destino actual</th></tr></thead><tbody>';
+  items.forEach(r => {
+    const da = r.destino_actual || {};
+    const dp = r.destino_anterior || {};
+    const badgeRsv = r._reserva_opo ? '<span class="badge badge-rojo">R</span>' : '—';
+    h += '<tr>';
+    h += '<td><span class="badge badge-curso">' + esc(r.curso) + '</span></td>';
+    h += '<td><span class="badge badge-cuerpo">' + esc(r._cuerpo_label || r.cuerpo) + '</span></td>';
+    h += '<td>' + (r._especialidad_label ? esc(r._especialidad_label) : r._especialidad_opo ? esc(r._especialidad_opo) : '—') + '</td>';
+    h += '<td><strong>' + esc(r.nombre) + '</strong></td>';
+    h += '<td>' + formatDNI(r.dni) + '</td>';
+    h += '<td>' + (r.ano_oposicion || '') + '</td>';
+    h += '<td>' + (r.ptos_oposicion != null ? r.ptos_oposicion.toFixed(4) : '') + '</td>';
+    h += '<td>' + (r.total_puntos != null ? r.total_puntos.toFixed(4) : '') + '</td>';
+    h += '<td>' + esc(r._convocatoria_opo || '') + '</td>';
+    h += '<td>' + esc(r._acceso_opo || '') + '</td>';
+    h += '<td>' + (r._puntuacion_opo != null ? r._puntuacion_opo.toFixed(4) : '') + '</td>';
+    h += '<td>' + (r._orden_opo || '') + '</td>';
+    h += '<td>' + badgeRsv + '</td>';
+    h += '<td>' + esc(r.origen_dat || '') + '</td>';
+    h += '<td>' + (dp && dp.codigo ? esc(dp.codigo + ' ' + (dp.nombre || '')) : '—') + '</td>';
+    h += '<td>' + (da && da.codigo ? esc(da.codigo + ' ' + (da.nombre || '')) : '—') + '</td>';
+    h += '</tr>';
+  });
+  h += '</tbody></table>';
+  wrap.innerHTML = h;
+}
+
+document.getElementById('fnSearch').addEventListener('input', () => applyFnFilters());
+document.getElementById('fnSearch').addEventListener('keydown', e => { if (e.key === 'Enter') applyFnFilters(); });
+document.getElementById('fnFilterCuerpo').onchange = () => applyFnFilters();
+document.getElementById('fnFilterCurso').onchange = () => applyFnFilters();
+document.getElementById('fnFilterConv').onchange = () => applyFnFilters();
+document.getElementById('fnFilterAcceso').onchange = () => applyFnFilters();
+
+document.getElementById('fnPrevPage').onclick = () => { if (fnPage > 0) { fnPage--; renderFn(); } };
+document.getElementById('fnNextPage').onclick = () => { if ((fnPage + 1) * FN_PAGE_SIZE < fnFiltered.length) { fnPage++; renderFn(); } };
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function formatDNI(d) { if (!d) return ''; var m = d.replace(/\D/g,'').slice(-4); return '****' + m + '*'; }
+
+function buildStandalone() {
+  var btn = document.getElementById('btnExport');
+  btn.disabled = true; btn.textContent = '⏳ Generando...';
+  fetch('/api/build-standalone', {method:'POST'})
+    .then(function(r){
+      if (!r.ok) return r.json().then(function(e){throw new Error(e.error)});
+      return r.blob();
+    })
+    .then(function(blob){
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = 'BIRRAS.dmg';
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(url);
+      btn.disabled = false; btn.textContent = '✅ ¡Descargado!';
+      setTimeout(function(){ btn.textContent = '⬇ Exportar .dmg'; }, 3000);
+    })
+    .catch(function(e){
+      btn.disabled = false; btn.textContent = '❌ Error';
+      console.error(e);
+      setTimeout(function(){ btn.textContent = '⬇ Exportar .dmg'; }, 3000);
+    });
+}
+function buildHTMLStandalone() {
+  var btn = document.getElementById('btnExportHTML');
+  btn.disabled = true; btn.textContent = '⏳ Generando...';
+  fetch('/api/build-html', {method:'POST'})
+    .then(function(r){
+      if (!r.ok) return r.json().then(function(e){throw new Error(e.error)});
+      return r.blob();
+    })
+    .then(function(blob){
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = 'BIRRAS.zip';
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(url);
+      btn.disabled = false; btn.textContent = '✅ ¡Descargado!';
+      setTimeout(function(){ btn.textContent = '📦 HTML standalone'; }, 3000);
+    })
+    .catch(function(e){
+      btn.disabled = false; btn.textContent = '❌ Error';
+      console.error(e);
+      setTimeout(function(){ btn.textContent = '📦 HTML standalone'; }, 3000);
+    });
+}
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-listas').style.display = name === 'listas' ? '' : 'none';
+  document.getElementById('tab-asignacion').style.display = name === 'asignacion' ? '' : 'none';
+  document.getElementById('tab-sustituciones').style.display = name === 'sustituciones' ? '' : 'none';
+  document.getElementById('tab-traslados').style.display = name === 'traslados' ? '' : 'none';
+  document.getElementById('tab-centros').style.display = name === 'centros' ? '' : 'none';
+  document.getElementById('tab-funcionarios').style.display = name === 'funcionarios' ? '' : 'none';
+  if (name === 'sustituciones') loadSustituciones();
+  if (name === 'traslados') loadTraslados();
+  if (name === 'asignacion') loadAsignacion();
+  if (name === 'listas') loadListas();
+  if (name === 'centros') loadCentros();
+  if (name === 'funcionarios') loadFuncionarios();
+}
+function getActiveTabId() { var a=document.querySelector('.tab.active'); return a ? 'tab-' + a.textContent.trim().toLowerCase().replace(/[^a-z]/g,'') : ''; }
+function getActiveTabName() { var a=document.querySelector('.tab.active'); return a ? a.textContent.trim() : 'export'; }
+
+const searchInput = document.getElementById('searchCentro');
+const suggestionsList = document.getElementById('suggestionsList');
+let suggestTimer;
+
+searchInput.addEventListener('input', () => {
+  clearTimeout(suggestTimer);
+  const v = searchInput.value.trim().toLowerCase();
+  if (v.length < 2) { suggestionsList.style.display = 'none'; return; }
+  suggestTimer = setTimeout(() => {
+    fetch('/api/suggest?q=' + encodeURIComponent(v))
+      .then(r => r.json())
+      .then(items => {
+        suggestionsList.innerHTML = '';
+        if (items.length) {
+          items.forEach(i => {
+            const d = document.createElement('div');
+            d.textContent = i;
+            d.onclick = () => { searchInput.value = i; suggestionsList.style.display = 'none'; applyFilters(); };
+            suggestionsList.appendChild(d);
+          });
+          suggestionsList.style.display = 'block';
+        } else {
+          suggestionsList.style.display = 'none';
+        }
+      });
+  }, 200);
+});
+document.addEventListener('click', e => { if (!document.getElementById('centro-group').contains(e.target)) suggestionsList.style.display = 'none'; });
+
+document.getElementById('filterCuerpo').onchange = () => { updateEspFilter(); applyFilters(); };
+['filterMonth','filterYear','filterDat','filterEsp','filterCausa','filterLocalidad','filterCentroTipo','filterBilingue','filterVacanteTipo'].forEach(id =>
+  document.getElementById(id).onchange = () => applyFilters()
+);
+document.getElementById('filterCurso').onchange = () => { applyFilters(); renderStats(); };
+
+loadListas();
+loadSustituciones();
+// Preload centros for profesorado/oferta autocomplete
+fetch('/api/centros')
+  .then(r => r.json())
+  .then(function(data) { ceAll = data; });
+// Preload cursos for profesorado
+fetch('/api/funcionarios/filters')
+  .then(r => r.json())
+  .then(function(f) {
+    var sel = document.getElementById('ceProfFilterCurso');
+    sel.innerHTML = '<option value="">Selecciona curso</option>';
+    (f.cursos || []).forEach(function(c) {
+      var o = document.createElement('option');
+      o.value = c; o.textContent = c;
+      sel.appendChild(o);
+    });
+  });
+</script>
+</body>
+</html>
