@@ -87,6 +87,96 @@ tr:hover td{background:#fafbff}
 // -- Fetch polyfill for standalone BIRRAS --
 window.BIRRAS = BIRRAS_DATA;
 var SU = BIRRAS.su, AS = BIRRAS.as, TR = BIRRAS.tr, LI = BIRRAS.li, CE = BIRRAS.ce;
+var FN = BIRRAS.fn || [];
+var FF = BIRRAS.ff || {cuerpos:[],cursos:[],convocatorias:[],accesos:[],especialidades:[]};
+var PC = BIRRAS.pc || {cursos:[]};
+
+function cursoEnd(c) {
+  var p = String(c || '').split(/[\/\-]/);
+  var y = parseInt(p[1], 10);
+  if (isNaN(y)) y = parseInt(p[0], 10);
+  return isNaN(y) ? 0 : y;
+}
+
+// Índice persona -> curso -> centro (misma lógica que TEACHER_SCHOOL_MAP en el servidor)
+var FN_BY_PERSON = {}, TEACHER_SCHOOL_MAP = {};
+FN.forEach(function(r) {
+  if (!r.dni || !r.nombre) return;
+  var k = r.dni + '|' + r.nombre;
+  (FN_BY_PERSON[k] = FN_BY_PERSON[k] || []).push(r);
+});
+Object.keys(FN_BY_PERSON).forEach(function(k) {
+  var recs = FN_BY_PERSON[k].slice().sort(function(a, b) { return cursoEnd(a.curso) - cursoEnd(b.curso); });
+  var sm = {};
+  recs.forEach(function(r) {
+    var ce = cursoEnd(r.curso);
+    if (!ce) return;
+    var dp = (r.destino_anterior || {}).codigo, da = (r.destino_actual || {}).codigo;
+    if (dp) sm[ce] = dp;
+    if (da) sm[ce + 1] = da;
+  });
+  var ys = Object.keys(sm).map(Number);
+  if (!ys.length) return;
+  sm[9999] = sm[Math.max.apply(null, ys)];
+  TEACHER_SCHOOL_MAP[k] = sm;
+});
+
+function _teacherAtSchool(sm, cod, ce) {
+  if (!sm) return false;
+  if (sm[ce] === cod) return true;
+  var prev = Object.keys(sm).map(Number).filter(function(y) { return y <= ce; });
+  if (!prev.length) return false;
+  return sm[Math.max.apply(null, prev)] === cod;
+}
+
+function centroProfesores(u) {
+  var params = new URLSearchParams(u.split('?')[1] || '');
+  var codigo = params.get('codigo') || '', curso = params.get('curso') || '';
+  var ce = cursoEnd(curso), cursoNorm = curso.replace(/\//g, '-');
+  var seen = {}, result = [];
+  AS.forEach(function(r) {
+    if (r.centro_codigo !== codigo || r.curso !== cursoNorm) return;
+    var key = (r.dni || '') + '|' + (r.nombre || '');
+    if (seen[key]) return;
+    seen[key] = 1;
+    result.push({
+      nombre: r.nombre || '', dni: r.dni || '',
+      cuerpo: ((r._cod_cuerpo || '') + ' - ' + (r._nom_cuerpo || '')).replace(/^[\s\-]+|[\s\-]+$/g, ''),
+      especialidad: ((r.especialidad_codigo || '') + ' - ' + (r.especialidad_nombre || '')).replace(/^[\s\-]+|[\s\-]+$/g, ''),
+      tipo: 'asignacion', curso: curso
+    });
+  });
+  Object.keys(TEACHER_SCHOOL_MAP).forEach(function(k) {
+    if (!_teacherAtSchool(TEACHER_SCHOOL_MAP[k], codigo, ce)) return;
+    var best = null, bestY = 0;
+    (FN_BY_PERSON[k] || []).forEach(function(r) {
+      var cy = cursoEnd(r.curso);
+      if (!cy || cy > ce) return;
+      if (!best || cy > bestY) { best = r; bestY = cy; }
+    });
+    if (!best) return;
+    var parts = k.split('|'), pdni = parts[0], pnombre = parts.slice(1).join('|');
+    if (seen[pdni + '|' + pnombre]) return;
+    seen[pdni + '|' + pnombre] = 1;
+    result.push({
+      nombre: pnombre, dni: pdni,
+      cuerpo: best._cuerpo_label || best.cuerpo,
+      especialidad: best._especialidad_label || best.especialidad,
+      tipo: 'funcionarios', curso: curso
+    });
+  });
+  var seenDni = {}, out = [];
+  result.forEach(function(r) {
+    if (r.dni && seenDni[r.dni]) return;
+    if (r.dni) seenDni[r.dni] = 1;
+    out.push(r);
+  });
+  out.sort(function(a, b) {
+    var x = (a.especialidad || a.nombre || ''), y = (b.especialidad || b.nombre || '');
+    return x < y ? -1 : x > y ? 1 : 0;
+  });
+  return out;
+}
 
 function computeStats(curso) {
   var arr = curso ? SU.filter(function(s){return s.curso===curso}) : SU;
@@ -158,6 +248,10 @@ window.fetch = function(url, opts) {
     return _p({curso:_cs2,nuevos:0,total_actual:SU.length});
   }
   if (u.indexOf('/api/refresh-interinos') >= 0) return _p({curso:'',nuevos:0,total:LI.length});
+  if (u.indexOf('/api/funcionarios/filters') === 0) return _p(FF);
+  if (u.indexOf('/api/funcionarios') === 0) return _p({total:FN.length, records:FN});
+  if (u.indexOf('/api/profesorado/cursos') === 0) return _p(PC);
+  if (u.indexOf('/api/centros/profesores?') === 0) return _p(centroProfesores(u));
   if (u === '/api/centros') return _p(CE);
   if (u.indexOf('/api/publish') >= 0) return _p({ok:false,message:'Solo disponible en local'});
   return _origFetch ? _origFetch(url, opts) : Promise.reject(new Error('fetch not available: '+u));
@@ -407,6 +501,10 @@ AS.forEach(function(r){if(!r._tipo_label){if(r.tipo==='definitiva_funcionarios')
       <div class="search-group">
         <label>Cuerpo</label>
         <select id="fnFilterCuerpo"><option value="">Todos</option></select>
+      </div>
+      <div class="search-group">
+        <label>Especialidad</label>
+        <select id="fnFilterEsp"><option value="">Todas</option></select>
       </div>
       <div class="search-group">
         <label>Curso</label>
@@ -2010,6 +2108,7 @@ function loadFuncionarios() {
     .then(data => {
       fnAll = data.records || [];
       buildFnFilters();
+      updateFnEspFilter();
       applyFnFilters();
     });
   fetch('/api/funcionarios/filters')
@@ -2023,6 +2122,7 @@ function loadFuncionarios() {
       });
       populateSelect2('fnFilterCurso', f.cursos);
       document.getElementById('fnFilterCurso').value = cursoMasReciente(f.cursos);
+      updateFnEspFilter();
       applyFnFilters();
       populateSelect2('fnFilterConv', f.convocatorias);
       populateSelect2('fnFilterAcceso', f.accesos);
@@ -2031,9 +2131,30 @@ function loadFuncionarios() {
 
 function buildFnFilters() {}
 
+function updateFnEspFilter() {
+  const cuerpo = document.getElementById('fnFilterCuerpo').value;
+  const sel = document.getElementById('fnFilterEsp');
+  if (!sel) return;
+  const prev = sel.value;
+  const set = new Set();
+  fnAll.forEach(r => {
+    if (cuerpo && r.cuerpo !== cuerpo) return;
+    const k = r._especialidad_label || r.especialidad;
+    if (k) set.add(k);
+  });
+  sel.innerHTML = '<option value="">Todas</option>';
+  Array.from(set).sort((a, b) => a.localeCompare(b, 'es')).forEach(e => {
+    const o = document.createElement('option');
+    o.value = e; o.textContent = e;
+    sel.appendChild(o);
+  });
+  sel.value = set.has(prev) ? prev : '';
+}
+
 function applyFnFilters() {
   const q = document.getElementById('fnSearch').value.trim().toLowerCase();
   const cuerpo = document.getElementById('fnFilterCuerpo').value;
+  const esp = document.getElementById('fnFilterEsp').value;
   const curso = document.getElementById('fnFilterCurso').value;
   const conv = document.getElementById('fnFilterConv').value;
   const acceso = document.getElementById('fnFilterAcceso').value;
@@ -2041,6 +2162,7 @@ function applyFnFilters() {
   fnFiltered = fnAll.filter(r => {
     if (q && !r.nombre.toLowerCase().includes(q) && !(r.dni || '').toLowerCase().includes(q)) return false;
     if (cuerpo && r.cuerpo !== cuerpo) return false;
+    if (esp && (r._especialidad_label || r.especialidad) !== esp) return false;
     if (curso && r.curso !== curso) return false;
     if (conv && r._convocatoria_opo !== conv) return false;
     if (acceso && r._acceso_opo !== acceso) return false;
@@ -2116,7 +2238,8 @@ function renderFn() {
 
 document.getElementById('fnSearch').addEventListener('input', () => applyFnFilters());
 document.getElementById('fnSearch').addEventListener('keydown', e => { if (e.key === 'Enter') applyFnFilters(); });
-document.getElementById('fnFilterCuerpo').onchange = () => applyFnFilters();
+document.getElementById('fnFilterCuerpo').onchange = () => { updateFnEspFilter(); applyFnFilters(); };
+document.getElementById('fnFilterEsp').onchange = () => applyFnFilters();
 document.getElementById('fnFilterCurso').onchange = () => applyFnFilters();
 document.getElementById('fnFilterConv').onchange = () => applyFnFilters();
 document.getElementById('fnFilterAcceso').onchange = () => applyFnFilters();
