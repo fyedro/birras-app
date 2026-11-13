@@ -727,7 +727,8 @@ function loadSustituciones() {
       buildFilters();
       applyFilters();
       renderStats();
-      document.getElementById('loading').innerHTML = '';
+      var _ld = document.getElementById('loading');
+      if (_ld) _ld.innerHTML = '';
     });
 }
 
@@ -920,7 +921,8 @@ function loadTraslados() {
         }
         _tsel.value = _tc;
       }
-      document.querySelector('#tab-traslados .loading').innerHTML = '';
+      var _lt = document.querySelector('#tab-traslados .loading');
+      if (_lt) _lt.innerHTML = '';
       buildTrFilters();
       applyTrFilters();
     });
@@ -1055,7 +1057,8 @@ function loadAsignacion() {
       buildAsFilters();
       applyAsFilters();
       renderAsStats();
-      document.querySelector('#tab-asignacion .loading').innerHTML = '';
+      var _la = document.querySelector('#tab-asignacion .loading');
+      if (_la) _la.innerHTML = '';
     });
 }
 
@@ -1323,7 +1326,8 @@ function loadCentros() {
     .then(r => r.json())
     .then(data => {
       ceAll = data;
-      document.querySelector('#tab-centros .loading').innerHTML = '';
+      var _lc = document.querySelector('#tab-centros .loading');
+      if (_lc) _lc.innerHTML = '';
       buildCeFilters();
       applyCeFilters();
       buildCeProfMuniFilter();
