@@ -1197,20 +1197,13 @@ function applyAsFilters() {
     return true;
   });
 
-  if (!asSortCol) {
-    asFiltered.sort((a, b) => {
-      const la = a.lista || '0', lb = b.lista || '0';
-      const oa = parseInt(a.orden) || 0, ob = parseInt(b.orden) || 0;
-      return la.localeCompare(lb) || oa - ob;
-    });
-  } else {
-    asApplySort();
-  }
+  asApplySort();
   asPage = 0;
   renderAs();
 }
 
-let asSortCol = null, asSortAsc = true;
+// Orden por defecto: Docente (A→Z) y, a igualdad, curso más reciente primero.
+let asSortCol = 'nombre', asSortAsc = true;
 
 function renderAs() {
   const start = asPage * AS_PAGE_SIZE;
@@ -1302,7 +1295,11 @@ function asApplySort() {
       return asSortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
     }
     va = String(va).toLowerCase(); vb = String(vb).toLowerCase();
-    return asSortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+    var c2 = va.localeCompare(vb, 'es', { sensitivity: 'base' });
+    if (asSortCol === 'nombre' && c2 === 0) {
+      return (b.curso || '').localeCompare(a.curso || '');
+    }
+    return asSortAsc ? c2 : -c2;
   });
 }
 
