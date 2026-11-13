@@ -251,6 +251,10 @@ AS.forEach(function(r){if(!r._tipo_label){if(r.tipo==='definitiva_funcionarios')
         <label>Causa</label>
         <select id="filterCausa"><option value="">Todas</option></select>
       </div>
+      <div class="search-group">
+        <label>&nbsp;</label>
+        <button class="btn-export" onclick="refreshSustituciones()" id="btnRefreshSust" style="width:100%;padding:10px 14px">🔄 Actualizar sustituciones</button>
+      </div>
     </div>
   </div>
 
@@ -258,7 +262,6 @@ AS.forEach(function(r){if(!r._tipo_label){if(r.tipo==='definitiva_funcionarios')
     <div class="results-header">
       <h2>Resultados <span class="count-badge" id="resultCount">0</span></h2>
       <div class="pagination">
-        <button class="btn-export" onclick="refreshSustituciones()" style="background:#0f3460;color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:.82rem;font-weight:600;font-family:'Inter',sans-serif">🔄 Actualizar</button>
         <button id="prevPage" disabled>← Anterior</button>
         <span id="pageInfo">1 / 1</span>
         <button id="nextPage" disabled>Siguiente →</button>
