@@ -912,6 +912,14 @@ function loadTraslados() {
     .then(r => r.json())
     .then(data => {
       trAll = data;
+      var _tc = cursoMasReciente(trAll.map(function(r){ return r.curso; }));
+      if (_tc) {
+        var _tsel = document.getElementById('trFilterCurso');
+        if (!_tsel.querySelector('option[value="' + _tc + '"]')) {
+          var _to = document.createElement('option'); _to.value = _tc; _to.textContent = _tc; _tsel.appendChild(_to);
+        }
+        _tsel.value = _tc;
+      }
       document.querySelector('#tab-traslados .loading').innerHTML = '';
       buildTrFilters();
       applyTrFilters();
@@ -1102,6 +1110,7 @@ function buildAsFilters() {
   const selCu = document.getElementById('asFilterCurso');
   selCu.innerHTML = '<option value="">Todos</option>';
   [...cursos].sort().forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; selCu.appendChild(o); });
+  selCu.value = cursoMasReciente([...cursos]);
   const selL = document.getElementById('asFilterLocalidad');
   selL.innerHTML = '<option value="">Todas</option>';
   [...localidades].sort().forEach(l => { const o = document.createElement('option'); o.value = l; o.textContent = l; selL.appendChild(o); });
@@ -1331,6 +1340,7 @@ function loadCentros() {
         o.value = c; o.textContent = c;
         sel.appendChild(o);
       });
+      sel.value = cursoMasReciente(f.cursos);
     });
 }
 
@@ -1467,10 +1477,11 @@ function selectCentro(codigo, nombre) {
   ceProfPage = 0;
   buildCeProfFilters();
   ceSwitchSubtab('profesorado');
-  // Auto-cargar el primer curso disponible
+  // Auto-cargar el curso más reciente disponible
   var sel = document.getElementById('ceProfFilterCurso');
   if (sel.options.length > 1) {
-    sel.selectedIndex = 1;
+    sel.value = cursoMasReciente(Array.from(sel.options).map(function(o){ return o.value; }));
+    if (!sel.value) sel.selectedIndex = 1;
     loadCeProfesores();
   } else {
     document.getElementById('ceProfesoresWrap').innerHTML = '<div class="empty">Selecciona un curso arriba para ver los profesores</div>';
@@ -1820,6 +1831,11 @@ function populateSelect2(id, opts) {
   });
 }
 
+function cursoMasReciente(lista) {
+  var a = (lista || []).filter(Boolean).slice().sort();
+  return a.length ? a[a.length - 1] : '';
+}
+
 // ── Listas de Interinos (server-side pagination) ──
 let liPage = 1, liTotal = 0, liTotalPages = 1;
 let liFiltersLoaded = false;
@@ -1841,6 +1857,7 @@ function loadListas() {
           data.cursos.sort().forEach(c => {
             if (!cursos.has(c)) { cursos.add(c); const o = document.createElement('option'); o.value = c; o.textContent = c; selCu.appendChild(o); }
           });
+          selCu.value = cursoMasReciente(data.cursos);
         }
         window.liEsps = data.especialidades;
         var ld = document.querySelector('#tab-listas .loading');
@@ -2004,6 +2021,8 @@ function loadFuncionarios() {
         if (opt) opt.textContent = c.label;
       });
       populateSelect2('fnFilterCurso', f.cursos);
+      document.getElementById('fnFilterCurso').value = cursoMasReciente(f.cursos);
+      applyFnFilters();
       populateSelect2('fnFilterConv', f.convocatorias);
       populateSelect2('fnFilterAcceso', f.accesos);
     });
@@ -2194,6 +2213,7 @@ fetch('/api/funcionarios/filters')
       o.value = c; o.textContent = c;
       sel.appendChild(o);
     });
+    sel.value = cursoMasReciente(f.cursos);
   });
 </script>
 </body>
