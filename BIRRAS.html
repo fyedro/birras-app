@@ -2101,6 +2101,8 @@ const FN_PAGE_SIZE = 50;
 let fnAll = [];
 let fnFiltered = [];
 let fnPage = 0;
+let fnSortCol = '';
+let fnSortDir = 1;
 
 function loadFuncionarios() {
   fetch('/api/funcionarios?all=1')
@@ -2168,9 +2170,40 @@ function applyFnFilters() {
     if (acceso && r._acceso_opo !== acceso) return false;
     return true;
   });
+  if (fnSortCol === 'pos') {
+    fnFiltered.sort((a, b) => {
+      const av = a._pos, bv = b._pos;
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      if (av !== bv) return (av - bv) * fnSortDir;
+      if (a._pos_src !== b._pos_src) return a._pos_src === 'oficial' ? -1 : 1;
+      return (a.nombre || '').localeCompare(b.nombre || '', 'es');
+    });
+  }
   fnPage = 0;
   renderFn();
   renderFnStats();
+}
+
+function fnSort(col) {
+  if (col !== 'pos') return;
+  if (fnSortCol === col) fnSortDir = -fnSortDir;
+  else { fnSortCol = col; fnSortDir = 1; }
+  applyFnFilters();
+}
+
+function renderFnPos(r) {
+  if (r._pos_src === 'fuera') {
+    return '<span title="Nota fuera del rango de la convocatoria oficial: probablemente aprobó en otra comunidad u otro proceso." style="color:#9ca3af">—</span>';
+  }
+  if (r._pos == null) return '';
+  if (r._pos_src === 'oficial') {
+    const t = 'Posición oficial en la lista de seleccionados' + (r._convocatoria_opo ? ' (' + r._convocatoria_opo + ')' : '') + (r._pos_n ? ' · ' + r._pos + ' de ' + r._pos_n : '');
+    return '<strong title="' + esc(t) + '">' + r._pos + '</strong>';
+  }
+  const t = 'Posición estimada por año de oposición y nota' + (r._pos_n ? ' · ' + r._pos + ' de ' + r._pos_n : '') + '. No hay lista oficial de esa convocatoria.';
+  return '<span title="' + esc(t) + '" style="color:#6b7280;font-style:italic">≈' + r._pos + '</span>';
 }
 
 function renderFnStats() {
@@ -2208,7 +2241,7 @@ function renderFn() {
     return;
   }
 
-  let h = '<table><thead><tr><th>Curso</th><th>Cuerpo</th><th>Espec.</th><th>Nombre</th><th>DNI</th><th>Año Opo.</th><th>Pts Opo.</th><th>Total pts</th><th>Conv.</th><th>Acceso</th><th>Pts Opo.(2)</th><th title="Puesto en la lista de seleccionados de su oposición (convocatoria + especialidad + turno). Solo se rellena si el nombre coincide de forma fiable con la lista.">Ord. Opo.</th><th>Res.</th><th>Origen</th><th>Destino anterior</th><th>Destino actual</th></tr></thead><tbody>';
+  let h = '<table><thead><tr><th>Curso</th><th>Cuerpo</th><th>Espec.</th><th>Nombre</th><th>DNI</th><th>Año Opo.</th><th>Pts Opo.</th><th>Total pts</th><th>Conv.</th><th>Acceso</th><th>Pts Opo.(2)</th><th onclick="fnSort(\'pos\')" style="cursor:pointer" title="Posición en la lista de funcionarios: oficial cuando hay lista de seleccionados; estimada por año de oposición y nota en el resto. Clic para ordenar.">Posición <span class="sort-arrow">' + (fnSortCol === 'pos' ? (fnSortDir > 0 ? '▲' : '▼') : '▽') + '</span></th><th>Res.</th><th>Origen</th><th>Destino anterior</th><th>Destino actual</th></tr></thead><tbody>';
   items.forEach(r => {
     const da = r.destino_actual || {};
     const dp = r.destino_anterior || {};
@@ -2225,7 +2258,7 @@ function renderFn() {
     h += '<td>' + esc(r._convocatoria_opo || '') + '</td>';
     h += '<td>' + esc(r._acceso_opo || '') + '</td>';
     h += '<td>' + (r._puntuacion_opo != null ? r._puntuacion_opo.toFixed(4) : '') + '</td>';
-    h += '<td>' + (r._orden_opo || '') + '</td>';
+    h += '<td>' + renderFnPos(r) + '</td>';
     h += '<td>' + badgeRsv + '</td>';
     h += '<td>' + esc(r.origen_dat || '') + '</td>';
     h += '<td>' + (dp && dp.codigo ? esc(dp.codigo + ' ' + (dp.nombre || '')) : '—') + '</td>';
