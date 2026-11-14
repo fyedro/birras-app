@@ -372,13 +372,7 @@ AS.forEach(function(r){if(!r._tipo_label){if(r.tipo==='definitiva_funcionarios')
     <div class="search-row">
       <div class="search-group">
         <label>Curso</label>
-        <select id="trFilterCurso"><option value="">Todos</option>
-          <option value="2021-2022">2021-2022</option>
-          <option value="2022-2023">2022-2023</option>
-          <option value="2023-2024">2023-2024</option>
-          <option value="2024-2025">2024-2025</option>
-          <option value="2025-2026">2025-2026</option>
-        </select>
+        <select id="trFilterCurso"><option value="">Todos</option></select>
       </div>
       <div class="search-group">
         <label>Cuerpo</label>
@@ -1011,14 +1005,13 @@ function loadTraslados() {
     .then(r => r.json())
     .then(data => {
       trAll = data;
-      var _tc = cursoMasReciente(trAll.map(function(r){ return r.curso; }));
-      if (_tc) {
-        var _tsel = document.getElementById('trFilterCurso');
-        if (!_tsel.querySelector('option[value="' + _tc + '"]')) {
-          var _to = document.createElement('option'); _to.value = _tc; _to.textContent = _tc; _tsel.appendChild(_to);
-        }
-        _tsel.value = _tc;
-      }
+      // Curso: opciones dinámicas desde los datos (histórico completo)
+      var _tsel = document.getElementById('trFilterCurso');
+      var _cursos = [...new Set(trAll.map(function(r){ return r.curso; }).filter(Boolean))].sort();
+      _tsel.innerHTML = '<option value="">Todos</option>' +
+        _cursos.map(function(c){ return '<option value="' + c + '">' + c + '</option>'; }).join('');
+      var _tc = cursoMasReciente(_cursos);
+      if (_tc) _tsel.value = _tc;
       var _lt = document.querySelector('#tab-traslados .loading');
       if (_lt) _lt.innerHTML = '';
       buildTrFilters();
