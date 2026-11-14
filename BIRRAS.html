@@ -2208,7 +2208,7 @@ function renderFn() {
     return;
   }
 
-  let h = '<table><thead><tr><th>Curso</th><th>Cuerpo</th><th>Espec.</th><th>Nombre</th><th>DNI</th><th>Año Opo.</th><th>Pts Opo.</th><th>Total pts</th><th>Conv.</th><th>Acceso</th><th>Pts Opo.(2)</th><th>Ord.</th><th>Res.</th><th>Origen</th><th>Destino anterior</th><th>Destino actual</th></tr></thead><tbody>';
+  let h = '<table><thead><tr><th>Curso</th><th>Cuerpo</th><th>Espec.</th><th>Nombre</th><th>DNI</th><th>Año Opo.</th><th>Pts Opo.</th><th>Total pts</th><th>Conv.</th><th>Acceso</th><th>Pts Opo.(2)</th><th title="Puesto en la lista de seleccionados de su oposición (convocatoria + especialidad + turno). Solo se rellena si el nombre coincide de forma fiable con la lista.">Ord. Opo.</th><th>Res.</th><th>Origen</th><th>Destino anterior</th><th>Destino actual</th></tr></thead><tbody>';
   items.forEach(r => {
     const da = r.destino_actual || {};
     const dp = r.destino_anterior || {};
