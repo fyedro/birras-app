@@ -68,6 +68,24 @@ tr:hover td{background:#fafbff}
 .ce-subtab{padding:10px 20px;border:none;background:none;font-size:.85rem;font-weight:500;color:#6b7280;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s}
 .ce-subtab.active{color:#1a1a2e;border-bottom-color:#2563eb;font-weight:600}
 .ce-subtab:hover{color:#1a1a2e}
+.persona-detail{background:#fff;border-radius:10px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden}
+.persona-detail>summary{padding:14px 20px;cursor:pointer;font-weight:600;font-size:.9rem;list-style:none;display:flex;align-items:center;gap:8px;color:#1a1a2e}
+.persona-detail>summary::-webkit-details-marker{display:none}
+.persona-detail>summary:before{content:'▾';font-size:.8rem;color:#6b7280}
+.persona-detail:not([open])>summary:before{content:'▸'}
+.persona-detail .table-wrap{max-height:none}
+.persona-more{background:#eef2ff;color:#0f3460;border:none;border-radius:6px;padding:7px 14px;margin:12px 20px;cursor:pointer;font-size:.8rem;font-weight:600;font-family:'Inter',sans-serif}
+.persona-more:hover{background:#dbe4ff}
+.persona-empty{padding:18px 20px;color:#9ca3af;font-size:.85rem}
+.persona-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:10px;margin-bottom:16px}
+.persona-card{background:#fff;border-radius:10px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.persona-card .label{font-size:.7rem;text-transform:uppercase;letter-spacing:.4px;color:#6b7280}
+.persona-card .value{font-size:1.15rem;font-weight:700;color:#0f3460;margin-top:3px}
+.persona-chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.persona-chip{background:#fff;border:1px solid #d1d5db;border-radius:20px;padding:8px 14px;cursor:pointer;font-size:.82rem;font-family:'Inter',sans-serif;color:#0f3460}
+.persona-chip:hover{background:#eef2ff;border-color:#0f3460}
+.persona-note{background:#fffbeb;border:1px solid #fde68a;color:#854d0e;border-radius:8px;padding:10px 14px;font-size:.82rem;margin-bottom:16px}
+.persona-link{background:none;border:none;color:#2563eb;cursor:pointer;font-size:.75rem;padding:0;font-family:'Inter',sans-serif;text-decoration:underline}
 @media(max-width:768px){
   .header{padding:18px}
   .search-row{flex-direction:column}
@@ -222,6 +240,172 @@ function filterListas(urlStr) {
   return {records:filtered.slice(start,Math.min(start+ps,total)), total:total, page:page, pageSize:ps};
 }
 
+/* ── Búsqueda global de personas (espejo de la lógica del servidor) ── */
+var _PA_idx = null;
+function pNorm(s) {
+  return String(s == null ? '' : s).normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+function pCanon(s) { return pNorm(s).split(' ').filter(Boolean).sort().join(' '); }
+function pDni4(d) {
+  var s = String(d == null ? '' : d).replace(/[^0-9A-Za-z]/g, '').toUpperCase();
+  return s.length >= 4 ? s.slice(-4) : s;
+}
+function pName(src, r) {
+  if (src === 'su' || src === 'li') return [r.papellid, r.sapellid, r.nombre].filter(Boolean).join(' ');
+  return String(r.nombre || '');
+}
+function pParse(q) {
+  var raw = String(q || '').trim(), dni = '', kept = [];
+  raw.split(/\s+/).forEach(function(t) {
+    var clean = t.replace(/[^0-9A-Za-z]/g, '').toUpperCase();
+    if (clean && clean.length >= 3 && (t.indexOf('*') >= 0 || /\d/.test(clean))) dni = clean.slice(-4);
+    else kept.push(t);
+  });
+  return {raw: raw, name: kept.join(' ').replace(/\s+/g, ' ').trim(), dni: dni};
+}
+function pPrepare() {
+  if (_PA_idx) return _PA_idx;
+  var lm = Object.create(null), di = Object.create(null), keys = [];
+  function add(src, r, name) {
+    var nm = name != null ? String(name || '') : pName(src, r);
+    var key = pCanon(nm);
+    if (!key) return;
+    r.__pk = key;
+    r.__pd = pDni4(r.dni || r.dniSust || '');
+    if (!lm[key]) { lm[key] = {label: nm.replace(/\s+/g, ' ').trim(), count: 0}; keys.push(key); }
+    lm[key].count++;
+    if (r.__pd) { if (!di[r.__pd]) di[r.__pd] = Object.create(null); di[r.__pd][key] = 1; }
+  }
+  AS.forEach(function(r) { add('as', r); });
+  SU.forEach(function(r) { add('su', r); });
+  TR.forEach(function(r) { add('tr', r); });
+  FN.forEach(function(r) {
+    add('fn', r);
+    if (r._convocatoria_opo || r._orden_opo) add('op', r, r.nombre);
+  });
+  LI.forEach(function(r) { add('li', r); });
+  _PA_idx = {lm: lm, di: di, keys: keys};
+  return _PA_idx;
+}
+function pPick(r, fs) { var o = {}; fs.forEach(function(k) { o[k] = r[k]; }); return o; }
+function pProject(src, r) {
+  if (src === 'as') return pPick(r, ['curso','tipo','_tipo_label','centro_codigo','centro_nombre','localidad','cuerpo_codigo','_nom_cuerpo','especialidad_codigo','especialidad_nombre','dni']);
+  if (src === 'su') return pPick(r, ['curso','fcpublico','centro','ccentro','dloc','_cod_cuerpo','_nom_cuerpo','dfuncion','dsdat','tipopuesto','observaciones','subtipo','lista','idnsustituciones']);
+  if (src === 'tr') return pPick(r, ['curso','cuerpo_codigo','_nom_cuerpo','especialidad_codigo','especialidad','puntos_total','destino_codigo','destino','_centro_municipio','_bilingue','dni','ano_oposicion']);
+  if (src === 'li') return pPick(r, ['curso','fcpublico','tipolista','subtipo','orden','puntos','desempate','codcuerpocfunc','_nom_cuerpo','codespcfunc','espcfunc','dniSust','acceso','habilitado','centro','estado']);
+  if (src === 'fn' || src === 'op') {
+    var o = pPick(r, ['curso','cuerpo','especialidad','dni','ano_oposicion','total_puntos','ptos_oposicion','_pos','_pos_n','_pos_src','origen_dat','denegado','forzoso','modalidad','tipo_peticion','_convocatoria_opo','_acceso_opo','_puntuacion_opo','_orden_opo','_reserva_opo','_especialidad_opo','_cuerpo_label','_especialidad_label']);
+    o.destino_anterior = {codigo: (r.destino_anterior || {}).codigo || '', nombre: (r.destino_anterior || {}).nombre || ''};
+    o.destino_actual = {codigo: (r.destino_actual || {}).codigo || '', nombre: (r.destino_actual || {}).nombre || ''};
+    return o;
+  }
+  return {};
+}
+function pSort(src, items) {
+  items.sort(function(a, b) {
+    var ka, kb;
+    if (src === 'su') {
+      ka = [a.fcpublico || '', a.centro || '']; kb = [b.fcpublico || '', b.centro || ''];
+    } else {
+      var ca = src === 'op' ? (a._convocatoria_opo || a.curso || '') : String(a.curso || '').replace(/\//g, '-');
+      var cb = src === 'op' ? (b._convocatoria_opo || b.curso || '') : String(b.curso || '').replace(/\//g, '-');
+      ka = [ca, a.fcpublico || '', -(parseInt(a.orden) || 0)];
+      kb = [cb, b.fcpublico || '', -(parseInt(b.orden) || 0)];
+    }
+    for (var i = 0; i < ka.length; i++) {
+      if (ka[i] < kb[i]) return 1;
+      if (ka[i] > kb[i]) return -1;
+    }
+    return 0;
+  });
+  return items;
+}
+function pRatio(a, b) {
+  if (a === b) return 1;
+  if (!a.length || !b.length) return 0;
+  var prev = new Array(b.length + 1).fill(0), cur;
+  for (var i = 1; i <= a.length; i++) {
+    cur = new Array(b.length + 1).fill(0);
+    for (var j = 1; j <= b.length; j++) {
+      cur[j] = a.charAt(i - 1) === b.charAt(j - 1) ? prev[j - 1] + 1 : Math.max(prev[j], cur[j - 1]);
+    }
+    prev = cur;
+  }
+  return 2 * prev[b.length] / (a.length + b.length);
+}
+function pCandidates(idx, key, dni) {
+  if (!key) return [];
+  var toks = key.split(' ').filter(function(t) { return t.length > 1; });
+  var pool = idx.keys.filter(function(k) {
+    if (Math.abs(k.length - key.length) > 8) return false;
+    for (var i = 0; i < toks.length; i++) if (k.indexOf(toks[i]) >= 0) return true;
+    return false;
+  });
+  var scored = pool.map(function(k) { return {k: k, s: pRatio(key, k)}; })
+    .filter(function(o) { return o.s >= 0.82; })
+    .sort(function(a, b) { return b.s - a.s; }).slice(0, 8);
+  if (dni && idx.di[dni]) {
+    var same = scored.filter(function(o) { return idx.di[dni][o.k]; });
+    if (same.length) scored = same;
+  }
+  return scored.map(function(o) { return {key: o.k, label: idx.lm[o.k].label, count: idx.lm[o.k].count}; });
+}
+function personaSearch(q) {
+  var pq = pParse(q), idx = pPrepare(), key = pCanon(pq.name), keys = [];
+  if (key && idx.lm[key]) keys.push(key);
+  if (pq.dni) {
+    var dkeys = Object.keys(idx.di[pq.dni] || {});
+    keys = keys.length ? keys.filter(function(k) { return dkeys.indexOf(k) >= 0; }) : dkeys;
+  }
+  var sources = {as: AS, su: SU, tr: TR, fn: FN, li: LI};
+  var srcs = ['as','su','tr','fn','li','op'];
+  var groups = {}, totals = {}, truncated = {};
+  srcs.forEach(function(s) { groups[s] = []; totals[s] = 0; truncated[s] = false; });
+  var dnis = {}, cursos = {}, sinDni = 0;
+  keys.forEach(function(k) {
+    Object.keys(sources).forEach(function(src) {
+      sources[src].forEach(function(r) {
+        if (r.__pk !== k) return;
+        if (r.__pd) dnis[r.__pd] = 1;
+        var dniOk = !pq.dni || (r.__pd && r.__pd.slice(-pq.dni.length) === pq.dni);
+        if (!dniOk) { sinDni++; return; }
+        totals[src]++;
+        var cur = String(r.curso || '').replace(/\//g, '-');
+        if (cur) cursos[cur] = 1;
+        if (groups[src].length < 400) groups[src].push(pProject(src, r));
+        if (src === 'fn' && (r._convocatoria_opo || r._orden_opo)) {
+          totals.op++;
+          if (groups.op.length < 400) groups.op.push(pProject('op', r));
+        }
+      });
+    });
+  });
+  srcs.forEach(function(s) { groups[s] = pSort(s, groups[s]); truncated[s] = totals[s] > groups[s].length; });
+  var totalAll = srcs.reduce(function(a, s) { return a + totals[s]; }, 0);
+  var candidates = !totalAll && key ? pCandidates(idx, key, pq.dni) : [];
+  return {
+    query: pq.raw, name: pq.name, key: key, dni: pq.dni,
+    label: idx.lm[key] ? idx.lm[key].label : (pq.name || pq.raw),
+    groups: groups, totals: totals,
+    counts: Object.fromEntries(srcs.map(function(s) { return [s, groups[s].length]; })),
+    truncated: truncated,
+    dnis: Object.keys(dnis).sort(), cursos: Object.keys(cursos).sort(),
+    excluded_no_dni: sinDni, candidates: candidates
+  };
+}
+function personaSuggestLocal(q) {
+  var idx = pPrepare(), toks = pCanon(q).split(' ').filter(Boolean);
+  if (!toks.length) return [];
+  var out = [];
+  idx.keys.forEach(function(k) {
+    for (var i = 0; i < toks.length; i++) if (k.indexOf(toks[i]) < 0) return;
+    out.push({key: k, label: idx.lm[k].label, count: idx.lm[k].count});
+  });
+  out.sort(function(a, b) { return b.count - a.count || (a.key < b.key ? -1 : 1); });
+  return out.slice(0, 8);
+}
+
 var _origFetch = window.fetch;
 window.fetch = function(url, opts) {
   var u = typeof url === 'string' ? url : (url.url || url.href || '');
@@ -234,6 +418,14 @@ window.fetch = function(url, opts) {
   if (u.indexOf('/api/suggest?') === 0) {
     var q = new URLSearchParams(u.split('?')[1]||'').get('q')||'';
     return _p(suggestResults(q));
+  }
+  if (u.indexOf('/api/persona/suggest?q=') === 0) {
+    var pq = new URLSearchParams(u.split('?')[1]||'').get('q')||'';
+    return _p(personaSuggestLocal(pq));
+  }
+  if (u.indexOf('/api/persona?q=') === 0) {
+    var pq2 = new URLSearchParams(u.split('?')[1]||'').get('q')||'';
+    return _p(personaSearch(pq2));
   }
   if (u === '/api/asignacion?all=1') return _p(AS);
   if (u === '/api/traslados?all=1') return _p(TR);
@@ -279,6 +471,7 @@ AS.forEach(function(r){if(!r._tipo_label){if(r.tipo==='definitiva_funcionarios')
   <button class="tab" onclick="switchTab('traslados',this)">Concurso de Traslados</button>
       <button class="tab" onclick="switchTab('funcionarios',this)">Funcionarios</button>
   <button class="tab" onclick="switchTab('centros',this)">Centros Educativos</button>
+  <button class="tab" onclick="switchTab('persona',this)">🔍 Persona</button>
 </div>
 
 <div id="tab-sustituciones" style="display:none">
@@ -710,6 +903,26 @@ AS.forEach(function(r){if(!r._tipo_label){if(r.tipo==='definitiva_funcionarios')
         <div class="empty" style="padding:40px;text-align:center;color:#6b7280">Selecciona un centro o busca un ciclo formativo</div>
       </div>
     </div>
+  </div>
+</div>
+
+<div id="tab-persona" style="display:none">
+  <div class="search-section">
+    <div class="search-row">
+      <div class="search-group suggestions" style="flex:3">
+        <label>Buscar persona</label>
+        <input type="text" id="personaInput" placeholder="Nombre y apellidos, Apellidos, Nombre… o añade el DNI (****4791)" autocomplete="off">
+        <div class="suggestions-list" id="personaSuggestions"></div>
+      </div>
+      <div class="search-group" style="flex:0 0 auto">
+        <label>&nbsp;</label>
+        <button class="btn-export" onclick="buscarPersona()" style="padding:10px 22px">🔍 Buscar</button>
+      </div>
+    </div>
+    <p style="font-size:.78rem;color:#6b7280;margin-top:10px">Busca en asignación, sustituciones, traslados, funcionarios, listas de interinos y oposiciones. Puedes añadir los últimos 4 caracteres del DNI para distinguir homónimos.</p>
+  </div>
+  <div id="personaOutput">
+    <div class="results-section"><div class="empty">Escribe un nombre para ver toda la información disponible.</div></div>
   </div>
 </div>
 
@@ -2276,6 +2489,230 @@ document.getElementById('fnNextPage').onclick = () => { if ((fnPage + 1) * FN_PA
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function formatDNI(d) { if (!d) return ''; var m = d.replace(/\D/g,'').slice(-4); return '****' + m + '*'; }
 
+/* ── Pestaña 🔍 Persona ───────────────────────────────────────────── */
+const PERSONA_SECTIONS = [
+  {key:'as', label:'Asignación de inicio de curso', tab:'asignacion', input:'asSearchNombre', filter:'asFilterCurso'},
+  {key:'su', label:'Sustituciones diarias', tab:'sustituciones', input:'searchCentro', filter:'filterCurso'},
+  {key:'tr', label:'Traslados · adjudicaciones definitivas', tab:'traslados', input:'trSearchDestino', filter:'trFilterCurso'},
+  {key:'fn', label:'Funcionarios · participantes en concursos', tab:'funcionarios', input:'fnSearch', filter:'fnFilterCurso'},
+  {key:'li', label:'Listas de interinos', tab:'listas', input:'liSearchNombre', filter:'liFilterCurso'},
+  {key:'op', label:'Oposiciones · listas de seleccionados', tab:'funcionarios', input:'fnSearch', filter:'fnFilterConv'}
+];
+const PERSONA_COLUMNS = {
+  as: [
+    {l:'Curso',k:'curso'}, {l:'Tipo',f:r=>r._tipo_label||r.tipo},
+    {l:'Centro',f:r=>r.centro_nombre?r.centro_nombre+(r.localidad?' ('+r.localidad+')':''):''},
+    {l:'Cuerpo',f:r=>r._nom_cuerpo||r.cuerpo_codigo},
+    {l:'Especialidad',f:r=>[r.especialidad_codigo,r.especialidad_nombre].filter(Boolean).join(' - ')},
+    {l:'DNI',k:'dni'}],
+  su: [
+    {l:'Curso',k:'curso'}, {l:'Publicación',k:'fcpublico'},
+    {l:'Centro',f:r=>r.centro||r.ccentro}, {l:'Localidad',k:'dloc'},
+    {l:'Cuerpo',f:r=>[r._cod_cuerpo,r._nom_cuerpo].filter(Boolean).join(' - ')},
+    {l:'Datos',k:'dsdat'}, {l:'Puesto',k:'tipopuesto'}, {l:'Observaciones',k:'observaciones'}],
+  tr: [
+    {l:'Curso',k:'curso'}, {l:'Cuerpo',f:r=>r._nom_cuerpo||r.cuerpo_codigo},
+    {l:'Especialidad',f:r=>[r.especialidad_codigo,r.especialidad].filter(Boolean).join(' - ')},
+    {l:'Puntos',k:'puntos_total'}, {l:'Destino',k:'destino'},
+    {l:'Municipio',k:'_centro_municipio'}, {l:'DNI',k:'dni'}],
+  fn: [
+    {l:'Curso',k:'curso'}, {l:'Cuerpo',f:r=>r._cuerpo_label||r.cuerpo},
+    {l:'Especialidad',f:r=>r._especialidad_label||r.especialidad},
+    {l:'Posición',f:r=>r._pos?r._pos+(r._pos_n?' / '+r._pos_n:'')+(r._pos_src==='est'?' (est)':''):''},
+    {l:'Puntos totales',k:'total_puntos'}, {l:'Puntos opos.',k:'ptos_oposicion'},
+    {l:'Situación',f:r=>[r.denegado,r.forzoso,r.modalidad].filter(Boolean).join(' · ')},
+    {l:'Origen',k:'origen_dat'},
+    {l:'Destino anterior',f:r=>r.destino_anterior&&r.destino_anterior.codigo?[r.destino_anterior.codigo,r.destino_anterior.nombre].filter(Boolean).join(' '):''},
+    {l:'Destino actual',f:r=>r.destino_actual&&r.destino_actual.codigo?[r.destino_actual.codigo,r.destino_actual.nombre].filter(Boolean).join(' '):''},
+    {l:'DNI',k:'dni'}],
+  li: [
+    {l:'Curso',k:'curso'}, {l:'Fecha',k:'fcpublico'},
+    {l:'Lista',f:r=>[r.tipolista,r.subtipo].filter(Boolean).join(' / ')},
+    {l:'Orden',k:'orden'}, {l:'Puntos',k:'puntos'},
+    {l:'Cuerpo',f:r=>r._nom_cuerpo||r.codcuerpocfunc},
+    {l:'Especialidad',f:r=>[r.codespcfunc,r.espcfunc].filter(Boolean).join(' - ')},
+    {l:'Estado',f:r=>r.estado||r.habilitado}, {l:'DNI',k:'dniSust'}],
+  op: [
+    {l:'Convocatoria',k:'_convocatoria_opo'}, {l:'Cuerpo',f:r=>r._cuerpo_label||r.cuerpo},
+    {l:'Especialidad',k:'_especialidad_opo'}, {l:'Acceso',k:'_acceso_opo'},
+    {l:'Orden',k:'_orden_opo'}, {l:'Puntuación',k:'_puntuacion_opo'},
+    {l:'Reserva',f:r=>r._reserva_opo?'Sí':''}, {l:'DNI',k:'dni'}]
+};
+const PERSONA_PAGE = 20;
+let personaData = null, personaLimits = {}, personaSuggestTimer = null;
+
+function initPersona() {
+  var inp = document.getElementById('personaInput');
+  if (!inp || inp.dataset.personaReady) return;
+  inp.dataset.personaReady = '1';
+  inp.addEventListener('input', function() {
+    clearTimeout(personaSuggestTimer);
+    var v = inp.value.trim();
+    var box = document.getElementById('personaSuggestions');
+    if (v.length < 3) { box.style.display = 'none'; return; }
+    personaSuggestTimer = setTimeout(function() {
+      fetch('/api/persona/suggest?q=' + encodeURIComponent(v))
+        .then(r => r.json()).then(function(items) {
+          box.innerHTML = '';
+          items.forEach(function(it) {
+            var d = document.createElement('div');
+            d.textContent = it.label + '  (' + it.count + ')';
+            d.onclick = function() { inp.value = it.label; box.style.display = 'none'; buscarPersona(); };
+            box.appendChild(d);
+          });
+          box.style.display = items.length ? 'block' : 'none';
+        }).catch(function() {});
+    }, 280);
+  });
+  inp.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { document.getElementById('personaSuggestions').style.display = 'none'; buscarPersona(); }
+  });
+}
+
+function buscarPersona(qOverride) {
+  var q = (qOverride !== undefined ? qOverride : document.getElementById('personaInput').value).trim();
+  var out = document.getElementById('personaOutput');
+  if (q.length < 3) {
+    out.innerHTML = '<div class="results-section"><div class="empty">Escribe al menos 3 caracteres.</div></div>';
+    return;
+  }
+  out.innerHTML = '<div class="results-section"><div class="loading">Buscando en todas las bases…</div></div>';
+  fetch('/api/persona?q=' + encodeURIComponent(q))
+    .then(r => r.json())
+    .then(function(d) { personaData = d; personaLimits = {}; renderPersona(d); })
+    .catch(function() {
+      out.innerHTML = '<div class="results-section"><div class="empty">No se pudo completar la búsqueda.</div></div>';
+    });
+}
+
+function personaElegir(i) {
+  var c = personaData && personaData.candidates && personaData.candidates[i];
+  if (c) { document.getElementById('personaInput').value = c.label; buscarPersona(c.label); }
+}
+
+function pJs(s) { return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
+
+function irAPestana(tab, inputId, filterId, filterVal) {
+  // Las pestañas cargan sus datos de forma perezosa y reconstruyen los selects:
+  // reaplicamos el curso/convocatoria de origen mientras se pueblan las opciones.
+  if (filterId && filterVal) {
+    var tries = 0;
+    var applyFilter = function(force) {
+      var f = document.getElementById(filterId);
+      if (!f || f.value === filterVal) return;
+      var exists = Array.prototype.some.call(f.options, function(o) { return o.value === filterVal; });
+      if (exists || force) {
+        f.value = filterVal;
+        f.dispatchEvent(new Event('change', {bubbles:true}));
+      }
+    };
+    var timer = setInterval(function() {
+      applyFilter(false);
+      if (++tries > 60) { clearInterval(timer); applyFilter(true); }
+    }, 100);
+  }
+  var btn = Array.prototype.find.call(document.querySelectorAll('.tab'), function(b) {
+    return (b.getAttribute('onclick') || '').indexOf("'" + tab + "'") >= 0;
+  });
+  if (btn) switchTab(tab, btn);
+  var el = document.getElementById(inputId);
+  var val = (personaData && personaData.label) || document.getElementById('personaInput').value;
+  if (el) {
+    el.value = val;
+    el.dispatchEvent(new Event('input', {bubbles:true}));
+    el.dispatchEvent(new Event('change', {bubbles:true}));
+  }
+  window.scrollTo(0, 0);
+}
+
+function personaTable(src, rows, limit) {
+  var defs = PERSONA_COLUMNS[src] || [];
+  var h = '<div class="table-wrap"><table><thead><tr>'
+        + defs.map(c => '<th>' + esc(c.l) + '</th>').join('')
+        + '<th></th></tr></thead><tbody>';
+  rows.slice(0, limit).forEach(function(r) {
+    h += '<tr>';
+    defs.forEach(function(c) {
+      var v = c.f ? c.f(r) : (r[c.k] || '');
+      h += '<td>' + (v ? esc(String(v)) : '—') + '</td>';
+    });
+    var sec = PERSONA_SECTIONS.find(s => s.key === src);
+    var fval = src === 'op' ? (r._convocatoria_opo || '') : (r.curso || '');
+    h += '<td><button class="persona-link" onclick="irAPestana(\'' + pJs(sec.tab) + '\',\''
+       + pJs(sec.input) + '\',\'' + pJs(sec.filter || '') + '\',\'' + pJs(fval)
+       + '\')">Ver en pestaña</button></td></tr>';
+  });
+  return h + '</tbody></table></div>';
+}
+
+function personaVerMas(src) {
+  var d = personaData;
+  if (!d) return;
+  personaLimits[src] = (personaLimits[src] || PERSONA_PAGE) + PERSONA_PAGE;
+  var panel = document.getElementById('personaSection-' + src);
+  if (panel) panel.outerHTML = renderPersonaSection(src, d);
+}
+
+function renderPersonaSection(src, d) {
+  var sec = PERSONA_SECTIONS.find(s => s.key === src);
+  var rows = d.groups[src] || [], total = d.totals[src] || 0;
+  var lim = Math.min(personaLimits[src] || PERSONA_PAGE, rows.length);
+  var h = '<details class="persona-detail" id="personaSection-' + src + '" open><summary>'
+        + esc(sec.label) + ' <span class="count-badge">' + total + '</span></summary>';
+  if (!rows.length) {
+    h += '<div class="persona-empty">Sin datos en esta fuente.</div>';
+  } else {
+    h += personaTable(src, rows, lim);
+    if (rows.length > lim) {
+      h += '<button class="persona-more" onclick="personaVerMas(\'' + src + '\')">Ver más (' + (rows.length - lim) + ')</button>';
+    }
+    if (d.truncated && d.truncated[src]) {
+      h += '<div class="persona-empty">Mostrando los primeros ' + rows.length + ' de ' + total + ' registros.</div>';
+    }
+  }
+  return h + '</details>';
+}
+
+function renderPersona(d) {
+  var out = document.getElementById('personaOutput');
+  if (d.error) { out.innerHTML = '<div class="results-section"><div class="empty">' + esc(d.error) + '</div></div>'; return; }
+  var totalAll = 0;
+  PERSONA_SECTIONS.forEach(function(s) { totalAll += (d.totals[s.key] || 0); });
+  var h = '<div class="persona-cards"><div class="persona-card"><div class="label">Registros encontrados</div><div class="value">'
+        + totalAll.toLocaleString() + '</div></div>';
+  PERSONA_SECTIONS.forEach(function(s) {
+    if (d.totals[s.key]) {
+      h += '<div class="persona-card"><div class="label">' + esc(s.label.split(' · ')[0]) + '</div><div class="value">'
+         + d.totals[s.key].toLocaleString() + '</div></div>';
+    }
+  });
+  if (d.dnis && d.dnis.length) {
+    h += '<div class="persona-card"><div class="label">DNI (últimos 4)</div><div class="value">'
+       + esc(d.dnis.join(', ')) + '</div></div>';
+  }
+  h += '</div>';
+  if (d.cursos && d.cursos.length) {
+    h += '<div class="persona-note">Cursos: ' + esc(d.cursos.join(' · ')) + '</div>';
+  }
+  if (d.excluded_no_dni) {
+    h += '<div class="persona-note">' + d.excluded_no_dni + ' registros del mismo nombre se han descartado al contrastar el DNI indicado (o por no tener DNI).</div>';
+  }
+  if (d.candidates && d.candidates.length) {
+    h += '<div class="persona-note">No hay coincidencias exactas. ¿Querías decir…?</div><div class="persona-chips">';
+    d.candidates.forEach(function(c, i) {
+      h += '<button class="persona-chip" onclick="personaElegir(' + i + ')">' + esc(c.label) + ' (' + c.count + ')</button>';
+    });
+    h += '</div>';
+  }
+  if (!totalAll && !(d.candidates && d.candidates.length)) {
+    h += '<div class="results-section"><div class="empty">No hay información de esta persona en las bases de datos.</div></div>';
+  }
+  PERSONA_SECTIONS.forEach(function(s) {
+    if (d.totals[s.key] || (d.groups[s.key] || []).length) h += renderPersonaSection(s.key, d);
+  });
+  out.innerHTML = h;
+}
+
 function publicarCloud() {
   var btn = document.getElementById('btnPublish');
   btn.disabled = true; btn.textContent = '⏳ Publicando...';
@@ -2301,6 +2738,8 @@ function switchTab(name, btn) {
   document.getElementById('tab-traslados').style.display = name === 'traslados' ? '' : 'none';
   document.getElementById('tab-centros').style.display = name === 'centros' ? '' : 'none';
   document.getElementById('tab-funcionarios').style.display = name === 'funcionarios' ? '' : 'none';
+  document.getElementById('tab-persona').style.display = name === 'persona' ? '' : 'none';
+  if (name === 'persona') initPersona();
   if (name === 'sustituciones') loadSustituciones();
   if (name === 'traslados') loadTraslados();
   if (name === 'asignacion') loadAsignacion();
