@@ -85,6 +85,7 @@ tr:hover td{background:#fafbff}
 .persona-chip{background:#fff;border:1px solid #d1d5db;border-radius:20px;padding:8px 14px;cursor:pointer;font-size:.82rem;font-family:'Inter',sans-serif;color:#0f3460}
 .persona-chip:hover{background:#eef2ff;border-color:#0f3460}
 .persona-note{background:#fffbeb;border:1px solid #fde68a;color:#854d0e;border-radius:8px;padding:10px 14px;font-size:.82rem;margin-bottom:16px}
+.persona-subtitle{color:#6b7280;font-size:.78rem;font-weight:600;margin:6px 20px 4px;text-transform:uppercase;letter-spacing:.04em}
 .persona-link{background:none;border:none;color:#2563eb;cursor:pointer;font-size:.75rem;padding:0;font-family:'Inter',sans-serif;text-decoration:underline}
 @media(max-width:768px){
   .header{padding:18px}
@@ -229,6 +230,8 @@ function filterListas(urlStr) {
     return true;
   });
   filtered.sort(function(a,b){
+    var cua=String(a.curso||'').replace(/\//g,'-'), cub=String(b.curso||'').replace(/\//g,'-');
+    if(cua!==cub) return cua<cub?-1:1;
     var ca=a.codcuerpocfunc||'', cb=b.codcuerpocfunc||''; if(ca!==cb) return ca<cb?-1:1;
     var ea=a.codespcfunc||'', eb=b.codespcfunc||''; if(ea!==eb) return ea<eb?-1:1;
     var la=parseInt(a.tipolista)||999, lb=parseInt(b.tipolista)||999; if(la!==lb) return la-lb;
@@ -290,7 +293,7 @@ function pPrepare() {
 }
 function pPick(r, fs) { var o = {}; fs.forEach(function(k) { o[k] = r[k]; }); return o; }
 function pProject(src, r) {
-  if (src === 'as') return pPick(r, ['curso','orden','tipo','_tipo_label','centro_codigo','centro_nombre','localidad','cuerpo_codigo','_nom_cuerpo','especialidad_codigo','especialidad_nombre','dni']);
+  if (src === 'as') return pPick(r, ['curso','orden','tipo','tipo_asignacion','_tipo_label','centro_codigo','centro_nombre','localidad','cuerpo_codigo','_nom_cuerpo','especialidad_codigo','especialidad_nombre','dni']);
   if (src === 'su') return pPick(r, ['curso','fcpublico','centro','ccentro','dloc','_cod_cuerpo','_nom_cuerpo','dfuncion','dsdat','tipopuesto','observaciones','subtipo','lista','idnsustituciones']);
   if (src === 'tr') return pPick(r, ['curso','cuerpo_codigo','_nom_cuerpo','especialidad_codigo','especialidad','puntos_total','destino_codigo','destino','_centro_municipio','_bilingue','dni','ano_oposicion']);
   if (src === 'li') return pPick(r, ['curso','fcpublico','tipolista','subtipo','orden','puntos','desempate','codcuerpocfunc','_nom_cuerpo','codespcfunc','espcfunc','dniSust','acceso','habilitado','centro','estado']);
@@ -302,35 +305,29 @@ function pProject(src, r) {
   }
   return {};
 }
-function pSort(src, items) {
-  if (src === 'as') {
-    // Asignación: de más antigua a más moderna (curso ascendente, luego orden).
-    items.sort(function(a, b) {
-      var ca = String(a.curso || '').replace(/\//g, '-');
-      var cb = String(b.curso || '').replace(/\//g, '-');
-      if (ca < cb) return -1;
-      if (ca > cb) return 1;
-      var oa = parseInt(a.orden) || 0, ob = parseInt(b.orden) || 0;
-      if (oa !== ob) return oa - ob;
-      return String(a.centro_nombre || '').localeCompare(String(b.centro_nombre || ''));
-    });
-    return items;
+function pFechaIso(s) {
+  var m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(String(s || ''));
+  return m ? m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2) : String(s || '');
+}
+function pCursoKey(src, r) {
+  if (src === 'op') {
+    var c = String(r._convocatoria_opo || r.curso || ''), m = /^(\d{4})/.exec(c);
+    return m ? m[1] : c;
   }
+  return String(r.curso || '').replace(/\//g, '-');
+}
+function pSort(src, items) {
+  // Todas las secciones: curso/convocatoria ascendente (más antiguo primero).
   items.sort(function(a, b) {
-    var ka, kb;
-    if (src === 'su') {
-      ka = [a.fcpublico || '', a.centro || '']; kb = [b.fcpublico || '', b.centro || ''];
-    } else {
-      var ca = src === 'op' ? (a._convocatoria_opo || a.curso || '') : String(a.curso || '').replace(/\//g, '-');
-      var cb = src === 'op' ? (b._convocatoria_opo || b.curso || '') : String(b.curso || '').replace(/\//g, '-');
-      ka = [ca, a.fcpublico || '', -(parseInt(a.orden) || 0)];
-      kb = [cb, b.fcpublico || '', -(parseInt(b.orden) || 0)];
-    }
-    for (var i = 0; i < ka.length; i++) {
-      if (ka[i] < kb[i]) return 1;
-      if (ka[i] > kb[i]) return -1;
-    }
-    return 0;
+    var ca = pCursoKey(src, a), cb = pCursoKey(src, b);
+    if (ca !== cb) return ca < cb ? -1 : 1;
+    var fa = pFechaIso(a.fcpublico), fb = pFechaIso(b.fcpublico);
+    if (fa !== fb) return fa < fb ? -1 : 1;
+    var oa = parseInt(a.orden) || 0, ob = parseInt(b.orden) || 0;
+    if (oa !== ob) return oa - ob;
+    var la = String(a.centro_nombre || a.centro || a.destino || a._especialidad_opo || '');
+    var lb = String(b.centro_nombre || b.centro || b.destino || b._especialidad_opo || '');
+    return la.localeCompare(lb);
   });
   return items;
 }
@@ -375,6 +372,7 @@ function personaSearch(q) {
   var srcs = ['as','su','tr','fn','li','op'];
   var groups = {}, totals = {}, truncated = {};
   srcs.forEach(function(s) { groups[s] = []; totals[s] = 0; truncated[s] = false; });
+  var hidden = {as: []}, hiddenTotals = {as: 0};
   var dnis = {}, cursos = {}, sinDni = 0;
   keys.forEach(function(k) {
     Object.keys(sources).forEach(function(src) {
@@ -386,6 +384,11 @@ function personaSearch(q) {
         totals[src]++;
         var cur = String(r.curso || '').replace(/\//g, '-');
         if (cur) cursos[cur] = 1;
+        if (src === 'as' && r.tipo_asignacion === 'especialidad') {
+          hiddenTotals.as++;
+          if (hidden.as.length < 400) hidden.as.push(pProject('as', r));
+          return;
+        }
         if (groups[src].length < 400) groups[src].push(pProject(src, r));
         if (src === 'fn' && (r._convocatoria_opo || r._orden_opo)) {
           totals.op++;
@@ -395,12 +398,14 @@ function personaSearch(q) {
     });
   });
   srcs.forEach(function(s) { groups[s] = pSort(s, groups[s]); truncated[s] = totals[s] > groups[s].length; });
+  hidden.as = pSort('as', hidden.as);
   var totalAll = srcs.reduce(function(a, s) { return a + totals[s]; }, 0);
   var candidates = !totalAll && key ? pCandidates(idx, key, pq.dni) : [];
   return {
     query: pq.raw, name: pq.name, key: key, dni: pq.dni,
     label: idx.lm[key] ? idx.lm[key].label : (pq.name || pq.raw),
     groups: groups, totals: totals,
+    hidden: hidden, hidden_totals: hiddenTotals,
     counts: Object.fromEntries(srcs.map(function(s) { return [s, groups[s].length]; })),
     truncated: truncated,
     dnis: Object.keys(dnis).sort(), cursos: Object.keys(cursos).sort(),
@@ -1044,6 +1049,8 @@ function loadSustituciones() {
       buildCursoFilter();
       buildFilters();
       applyFilters();
+      sortCol = null;   // forzar ascendente aunque la pestaña se vuelva a abrir
+      applySort('curso');
       renderStats();
       var _ld = document.getElementById('loading');
       if (_ld) _ld.innerHTML = '';
@@ -1207,6 +1214,17 @@ function render() {
 function applySort(key) {
   const dir = sortCol === key ? !sortAsc : true;
   sortCol = key; sortAsc = dir;
+  if (key === 'curso') {
+    filtered.sort((a, b) => {
+      const ca = cursoKey(a.curso), cb = cursoKey(b.curso);
+      if (ca !== cb) return dir ? ca.localeCompare(cb) : cb.localeCompare(ca);
+      const fa = fechaIso(a.fcpublico), fb = fechaIso(b.fcpublico);
+      if (fa !== fb) return dir ? fa.localeCompare(fb) : fb.localeCompare(fa);
+      return String(a.centro || '').localeCompare(String(b.centro || ''));
+    });
+    render();
+    return;
+  }
   filtered.sort((a, b) => {
     const va = (a[key]||'').toString().toLowerCase();
     const vb = (b[key]||'').toString().toLowerCase();
@@ -1217,6 +1235,13 @@ function applySort(key) {
 
 function sort(col) { applySort(col); }
 
+// Claves normalizadas para ordenar por curso (2024/2025 == 2024-2025) y por fecha (dd/mm/aaaa).
+function cursoKey(c) { return String(c || '').replace(/\//g, '-'); }
+function fechaIso(s) {
+  var m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(String(s || ''));
+  return m ? m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2) : String(s || '');
+}
+
 document.getElementById('prevPage').onclick = () => { if (page > 0) { page--; render(); } };
 document.getElementById('nextPage').onclick = () => { if ((page + 1) * PAGE_SIZE < filtered.length) { page++; render(); } };
 
@@ -1224,13 +1249,20 @@ document.getElementById('searchCentro').addEventListener('keydown', e => { if (e
 
 // ── Traslados ──
 let trAll = [], trFiltered = [], trPage = 0;
-let trSortCol = null, trSortAsc = true;
+let trSortCol = 'curso', trSortAsc = true;
 
 function loadTraslados() {
   fetch('/api/traslados?all=1')
     .then(r => r.json())
     .then(data => {
       trAll = data;
+      trSortCol = 'curso'; trSortAsc = true;
+      // Orden inicial: curso ascendente, luego nombre.
+      trAll.sort(function(a, b) {
+        var ca = cursoKey(a.curso), cb = cursoKey(b.curso);
+        if (ca !== cb) return ca < cb ? -1 : 1;
+        return String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es');
+      });
       // Curso: opciones dinámicas desde los datos (histórico completo)
       var _tsel = document.getElementById('trFilterCurso');
       var _cursos = [...new Set(trAll.map(function(r){ return r.curso; }).filter(Boolean))].sort();
@@ -1340,6 +1372,15 @@ function renderTr() {
 function trApplySort(key) {
   const dir = trSortCol === key ? !trSortAsc : true;
   trSortCol = key; trSortAsc = dir;
+  if (key === 'curso') {
+    trFiltered.sort((a, b) => {
+      const ca = cursoKey(a.curso), cb = cursoKey(b.curso);
+      if (ca !== cb) return dir ? ca.localeCompare(cb) : cb.localeCompare(ca);
+      return String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es');
+    });
+    renderTr();
+    return;
+  }
   trFiltered.sort((a, b) => {
     const va = (a[key]||'').toString().toLowerCase();
     const vb = (b[key]||'').toString().toLowerCase();
@@ -1371,6 +1412,7 @@ function loadAsignacion() {
     .then(r => r.json())
     .then(data => {
       asAll = data.filter(r => r.tipo_asignacion === 'centro');
+      asSortCol = 'curso'; asSortAsc = true;
       buildAsFilters();
       applyAsFilters();
       renderAsStats();
@@ -1519,8 +1561,8 @@ function applyAsFilters() {
   renderAs();
 }
 
-// Orden por defecto: Docente (A→Z) y, a igualdad, curso más antiguo primero.
-let asSortCol = 'nombre', asSortAsc = true;
+// Orden por defecto: curso (más antiguo → más moderno), luego docente y orden.
+let asSortCol = 'curso', asSortAsc = true;
 
 function renderAs() {
   const start = asPage * AS_PAGE_SIZE;
@@ -1587,6 +1629,14 @@ function renderAs() {
 
 function asApplySort() {
   asFiltered.sort((a, b) => {
+    if (asSortCol === 'curso') {
+      var ca = cursoKey(a.curso), cb = cursoKey(b.curso);
+      if (ca !== cb) return asSortAsc ? ca.localeCompare(cb) : cb.localeCompare(ca);
+      var na = (a.nombre || '').localeCompare(b.nombre || '', 'es');
+      if (na) return asSortAsc ? na : -na;
+      var oa = parseInt(a.orden) || 0, ob = parseInt(b.orden) || 0;
+      return asSortAsc ? oa - ob : ob - oa;
+    }
     if (asSortCol === '_interino_lista') {
       var va = (a._interino_lista || ''), vb = (b._interino_lista || '');
       var c = asSortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
@@ -2324,6 +2374,7 @@ let fnSortCol = '';
 let fnSortDir = 1;
 
 function loadFuncionarios() {
+  fnSortCol = '';
   fetch('/api/funcionarios?all=1')
     .then(r => r.json())
     .then(data => {
@@ -2397,6 +2448,19 @@ function applyFnFilters() {
       if (bv == null) return -1;
       if (av !== bv) return (av - bv) * fnSortDir;
       if (a._pos_src !== b._pos_src) return a._pos_src === 'oficial' ? -1 : 1;
+      return (a.nombre || '').localeCompare(b.nombre || '', 'es');
+    });
+  } else {
+    // Orden por defecto: curso ascendente, luego cuerpo y nombre.
+    fnFiltered.sort((a, b) => {
+      const ca = cursoKey(a.curso), cb = cursoKey(b.curso);
+      if (ca !== cb) {
+        if (!ca) return 1;
+        if (!cb) return -1;
+        return ca < cb ? -1 : 1;
+      }
+      const kua = String(a.cuerpo || ''), kub = String(b.cuerpo || '');
+      if (kua !== kub) return kua < kub ? -1 : 1;
       return (a.nombre || '').localeCompare(b.nombre || '', 'es');
     });
   }
@@ -2513,7 +2577,7 @@ const PERSONA_SECTIONS = [
 ];
 const PERSONA_COLUMNS = {
   as: [
-    {l:'Curso',k:'curso'}, {l:'Tipo',f:r=>r._tipo_label||r.tipo},
+    {l:'Curso',k:'curso'}, {l:'Tipo',f:r=>r.tipo_asignacion==='especialidad'?'Especialidad (sin centro)':(r._tipo_label||r.tipo)},
     {l:'Centro',f:r=>r.centro_nombre?r.centro_nombre+(r.localidad?' ('+r.localidad+')':''):''},
     {l:'Cuerpo',f:r=>r._nom_cuerpo||r.cuerpo_codigo},
     {l:'Especialidad',f:r=>[r.especialidad_codigo,r.especialidad_nombre].filter(Boolean).join(' - ')},
@@ -2552,7 +2616,7 @@ const PERSONA_COLUMNS = {
     {l:'Reserva',f:r=>r._reserva_opo?'Sí':''}, {l:'DNI',k:'dni'}]
 };
 const PERSONA_PAGE = 20;
-let personaData = null, personaLimits = {}, personaSuggestTimer = null;
+let personaData = null, personaLimits = {}, personaSuggestTimer = null, personaShowEsp = {};
 
 function initPersona() {
   var inp = document.getElementById('personaInput');
@@ -2638,22 +2702,26 @@ function irAPestana(tab, inputId, filterId, filterVal) {
   window.scrollTo(0, 0);
 }
 
-function personaTable(src, rows, limit) {
+function personaTable(src, rows, limit, showLink) {
   var defs = PERSONA_COLUMNS[src] || [];
+  var link = showLink !== false;
   var h = '<div class="table-wrap"><table><thead><tr>'
         + defs.map(c => '<th>' + esc(c.l) + '</th>').join('')
-        + '<th></th></tr></thead><tbody>';
+        + (link ? '<th></th>' : '') + '</tr></thead><tbody>';
   rows.slice(0, limit).forEach(function(r) {
     h += '<tr>';
     defs.forEach(function(c) {
       var v = c.f ? c.f(r) : (r[c.k] || '');
       h += '<td>' + (v ? esc(String(v)) : '—') + '</td>';
     });
-    var sec = PERSONA_SECTIONS.find(s => s.key === src);
-    var fval = src === 'op' ? (r._convocatoria_opo || '') : (r.curso || '');
-    h += '<td><button class="persona-link" onclick="irAPestana(\'' + pJs(sec.tab) + '\',\''
-       + pJs(sec.input) + '\',\'' + pJs(sec.filter || '') + '\',\'' + pJs(fval)
-       + '\')">Ver en pestaña</button></td></tr>';
+    if (link) {
+      var sec = PERSONA_SECTIONS.find(s => s.key === src);
+      var fval = src === 'op' ? (r._convocatoria_opo || '') : (r.curso || '');
+      h += '<td><button class="persona-link" onclick="irAPestana(\'' + pJs(sec.tab) + '\',\''
+         + pJs(sec.input) + '\',\'' + pJs(sec.filter || '') + '\',\'' + pJs(fval)
+         + '\')">Ver en pestaña</button></td>';
+    }
+    h += '</tr>';
   });
   return h + '</tbody></table></div>';
 }
@@ -2683,10 +2751,30 @@ function renderPersonaSection(src, d) {
       h += '<div class="persona-empty">Mostrando los primeros ' + rows.length + ' de ' + total + ' registros.</div>';
     }
   }
+  if (src === 'as') {
+    var nh = (d.hidden_totals && d.hidden_totals.as) || 0;
+    if (nh) {
+      h += '<div class="persona-note">Se omiten <strong>' + nh + '</strong> línea' + (nh === 1 ? '' : 's') +
+           ' de <strong>especialidad</strong>: figuras en la lista de esa especialidad, pero no se te adjudicó ningún centro. ' +
+           '<button class="persona-link" onclick="personaToggleEsp()">' + (personaShowEsp.as ? 'Ocultar' : 'Mostrar') +
+           ' ' + nh + ' línea' + (nh === 1 ? '' : 's') + '</button></div>';
+      if (personaShowEsp.as && d.hidden && d.hidden.as && d.hidden.as.length) {
+        h += '<div class="persona-subtitle">Especialidad (sin adjudicación de centro)</div>' +
+             personaTable('as', d.hidden.as, d.hidden.as.length, false);
+      }
+    }
+  }
   return h + '</details>';
 }
 
+function personaToggleEsp() {
+  personaShowEsp.as = !personaShowEsp.as;
+  var panel = document.getElementById('personaSection-as');
+  if (panel && personaData) panel.outerHTML = renderPersonaSection('as', personaData);
+}
+
 function renderPersona(d) {
+  personaShowEsp = {};
   var out = document.getElementById('personaOutput');
   if (d.error) { out.innerHTML = '<div class="results-section"><div class="empty">' + esc(d.error) + '</div></div>'; return; }
   var totalAll = 0;
