@@ -290,7 +290,7 @@ function pPrepare() {
 }
 function pPick(r, fs) { var o = {}; fs.forEach(function(k) { o[k] = r[k]; }); return o; }
 function pProject(src, r) {
-  if (src === 'as') return pPick(r, ['curso','tipo','_tipo_label','centro_codigo','centro_nombre','localidad','cuerpo_codigo','_nom_cuerpo','especialidad_codigo','especialidad_nombre','dni']);
+  if (src === 'as') return pPick(r, ['curso','orden','tipo','_tipo_label','centro_codigo','centro_nombre','localidad','cuerpo_codigo','_nom_cuerpo','especialidad_codigo','especialidad_nombre','dni']);
   if (src === 'su') return pPick(r, ['curso','fcpublico','centro','ccentro','dloc','_cod_cuerpo','_nom_cuerpo','dfuncion','dsdat','tipopuesto','observaciones','subtipo','lista','idnsustituciones']);
   if (src === 'tr') return pPick(r, ['curso','cuerpo_codigo','_nom_cuerpo','especialidad_codigo','especialidad','puntos_total','destino_codigo','destino','_centro_municipio','_bilingue','dni','ano_oposicion']);
   if (src === 'li') return pPick(r, ['curso','fcpublico','tipolista','subtipo','orden','puntos','desempate','codcuerpocfunc','_nom_cuerpo','codespcfunc','espcfunc','dniSust','acceso','habilitado','centro','estado']);
@@ -303,6 +303,19 @@ function pProject(src, r) {
   return {};
 }
 function pSort(src, items) {
+  if (src === 'as') {
+    // Asignación: de más antigua a más moderna (curso ascendente, luego orden).
+    items.sort(function(a, b) {
+      var ca = String(a.curso || '').replace(/\//g, '-');
+      var cb = String(b.curso || '').replace(/\//g, '-');
+      if (ca < cb) return -1;
+      if (ca > cb) return 1;
+      var oa = parseInt(a.orden) || 0, ob = parseInt(b.orden) || 0;
+      if (oa !== ob) return oa - ob;
+      return String(a.centro_nombre || '').localeCompare(String(b.centro_nombre || ''));
+    });
+    return items;
+  }
   items.sort(function(a, b) {
     var ka, kb;
     if (src === 'su') {
@@ -1506,7 +1519,7 @@ function applyAsFilters() {
   renderAs();
 }
 
-// Orden por defecto: Docente (A→Z) y, a igualdad, curso más reciente primero.
+// Orden por defecto: Docente (A→Z) y, a igualdad, curso más antiguo primero.
 let asSortCol = 'nombre', asSortAsc = true;
 
 function renderAs() {
@@ -1601,7 +1614,7 @@ function asApplySort() {
     va = String(va).toLowerCase(); vb = String(vb).toLowerCase();
     var c2 = va.localeCompare(vb, 'es', { sensitivity: 'base' });
     if (asSortCol === 'nombre' && c2 === 0) {
-      return (b.curso || '').localeCompare(a.curso || '');
+      return (a.curso || '').localeCompare(b.curso || '');
     }
     return asSortAsc ? c2 : -c2;
   });
