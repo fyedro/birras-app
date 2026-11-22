@@ -381,7 +381,6 @@ function personaSearch(q) {
         if (r.__pd) dnis[r.__pd] = 1;
         var dniOk = !pq.dni || (r.__pd && r.__pd.slice(-pq.dni.length) === pq.dni);
         if (!dniOk) { sinDni++; return; }
-        totals[src]++;
         var cur = String(r.curso || '').replace(/\//g, '-');
         if (cur) cursos[cur] = 1;
         if (src === 'as' && r.tipo_asignacion === 'especialidad') {
@@ -389,6 +388,7 @@ function personaSearch(q) {
           if (hidden.as.length < 400) hidden.as.push(pProject('as', r));
           return;
         }
+        totals[src]++;
         if (groups[src].length < 400) groups[src].push(pProject(src, r));
         if (src === 'fn' && (r._convocatoria_opo || r._orden_opo)) {
           totals.op++;
