@@ -87,6 +87,14 @@ tr:hover td{background:#fafbff}
 .persona-note{background:#fffbeb;border:1px solid #fde68a;color:#854d0e;border-radius:8px;padding:10px 14px;font-size:.82rem;margin-bottom:16px}
 .persona-subtitle{color:#6b7280;font-size:.78rem;font-weight:600;margin:6px 20px 4px;text-transform:uppercase;letter-spacing:.04em}
 .persona-link{background:none;border:none;color:#2563eb;cursor:pointer;font-size:.75rem;padding:0;font-family:'Inter',sans-serif;text-decoration:underline}
+.opo-badge{display:inline-block;padding:2px 7px;border-radius:12px;font-size:.72rem;font-weight:600;white-space:nowrap}
+.opo-badge.ok{background:#dcfce7;color:#166534}
+.opo-badge.warn{background:#fef3c7;color:#92400e}
+.opo-badge.info{background:#dbeafe;color:#1e40af}
+.opo-badge.bad{background:#fee2e2;color:#991b1b}
+.opo-plazas{margin-top:16px}
+.opo-link{color:#2563eb;text-decoration:none}
+.opo-link:hover{text-decoration:underline}
 @media(max-width:768px){
   .header{padding:18px}
   .search-row{flex-direction:column}
@@ -101,6 +109,7 @@ tr:hover td{background:#fafbff}
 <script src="https://fyedro.github.io/birras-app/data/cloud/part_4.js"></script>
 <script src="https://fyedro.github.io/birras-app/data/cloud/part_5.js"></script>
 <script src="https://fyedro.github.io/birras-app/data/cloud/part_6.js"></script>
+<script src="https://fyedro.github.io/birras-app/data/cloud/part_7.js"></script>
 
 <script>
 // -- Fetch polyfill for standalone BIRRAS --
@@ -288,6 +297,8 @@ function pPrepare() {
     if (r._convocatoria_opo || r._orden_opo) add('op', r, r.nombre);
   });
   LI.forEach(function(r) { add('li', r); });
+  oposPrepare();
+  OP.forEach(function(r) { add('oc', r, r.nombre); });
   _PA_idx = {lm: lm, di: di, keys: keys};
   return _PA_idx;
 }
@@ -296,6 +307,7 @@ function pProject(src, r) {
   if (src === 'as') return pPick(r, ['curso','orden','tipo','tipo_asignacion','_tipo_label','centro_codigo','centro_nombre','localidad','cuerpo_codigo','_nom_cuerpo','especialidad_codigo','especialidad_nombre','dni']);
   if (src === 'su') return pPick(r, ['curso','fcpublico','centro','ccentro','dloc','_cod_cuerpo','_nom_cuerpo','dfuncion','dsdat','tipopuesto','observaciones','subtipo','lista','idnsustituciones']);
   if (src === 'tr') return pPick(r, ['curso','cuerpo_codigo','_nom_cuerpo','especialidad_codigo','especialidad','puntos_total','destino_codigo','destino','_centro_municipio','_bilingue','dni','ano_oposicion']);
+  if (src === 'oc') return pPick(r, ['proceso','dni','nombre','nombre_sig','cuerpo','cuerpo_nombre','especialidad','acceso','puntuacion','orden','plazas','admitido','seleccionado','apto_practicas','nombrado','renuncia','modificacion','motivo_exclusion','fuentes']);
   if (src === 'li') return pPick(r, ['curso','fcpublico','tipolista','subtipo','orden','puntos','desempate','codcuerpocfunc','_nom_cuerpo','codespcfunc','espcfunc','dniSust','acceso','habilitado','centro','estado']);
   if (src === 'fn' || src === 'op') {
     var o = pPick(r, ['curso','cuerpo','especialidad','dni','ano_oposicion','total_puntos','ptos_oposicion','_pos','_pos_n','_pos_src','origen_dat','denegado','forzoso','modalidad','tipo_peticion','_convocatoria_opo','_acceso_opo','_puntuacion_opo','_orden_opo','_reserva_opo','_especialidad_opo','_cuerpo_label','_especialidad_label']);
@@ -310,6 +322,10 @@ function pFechaIso(s) {
   return m ? m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2) : String(s || '');
 }
 function pCursoKey(src, r) {
+  if (src === 'oc') {
+    var pc = String(r.proceso || ''), pm = /^(\d{4})/.exec(pc);
+    return pm ? pm[1] : pc;
+  }
   if (src === 'op') {
     var c = String(r._convocatoria_opo || r.curso || ''), m = /^(\d{4})/.exec(c);
     return m ? m[1] : c;
@@ -325,8 +341,8 @@ function pSort(src, items) {
     if (fa !== fb) return fa < fb ? -1 : 1;
     var oa = parseInt(a.orden) || 0, ob = parseInt(b.orden) || 0;
     if (oa !== ob) return oa - ob;
-    var la = String(a.centro_nombre || a.centro || a.destino || a._especialidad_opo || '');
-    var lb = String(b.centro_nombre || b.centro || b.destino || b._especialidad_opo || '');
+    var la = String(a.centro_nombre || a.centro || a.destino || a._especialidad_opo || a.especialidad || '');
+    var lb = String(b.centro_nombre || b.centro || b.destino || b._especialidad_opo || b.especialidad || '');
     return la.localeCompare(lb);
   });
   return items;
@@ -368,8 +384,8 @@ function personaSearch(q) {
     var dkeys = Object.keys(idx.di[pq.dni] || {});
     keys = keys.length ? keys.filter(function(k) { return dkeys.indexOf(k) >= 0; }) : dkeys;
   }
-  var sources = {as: AS, su: SU, tr: TR, fn: FN, li: LI};
-  var srcs = ['as','su','tr','fn','li','op'];
+  var sources = {as: AS, su: SU, tr: TR, fn: FN, li: LI, oc: OP};
+  var srcs = ['as','su','tr','fn','li','op','oc'];
   var groups = {}, totals = {}, truncated = {};
   srcs.forEach(function(s) { groups[s] = []; totals[s] = 0; truncated[s] = false; });
   var hidden = {as: []}, hiddenTotals = {as: 0};
@@ -424,10 +440,256 @@ function personaSuggestLocal(q) {
   return out.slice(0, 8);
 }
 
+// -- Oposiciones CM (mismo contrato que la API local) -----------------------
+var OP = null, OPOS_COMPACT = BIRRAS.op || [], OPM = BIRRAS.of || {};
+var OPOS_FIELDS = (OPM.fields || []).map(function(f) { return [f.short, f.long]; });
+if (!OPOS_FIELDS.length) OPOS_FIELDS = [
+  ['p','proceso'],['d','dni'],['n','nombre'],['ns','nombre_sig'],['c','cuerpo'],
+  ['cn','cuerpo_nombre'],['e','especialidad'],['ec','especialidad_codigo'],
+  ['a','acceso'],['ad','admitido'],['me','motivo_exclusion'],['bt','baremo_total'],
+  ['pu','puntuacion'],['o','orden'],['re','reserva'],['se','seleccionado'],
+  ['mo','modificacion'],['ap','apto_practicas'],['no','nombrado'],['rn','renuncia'],
+  ['al','aplazamiento'],['ne','nueva_especialidad'],['pe','pendiente_practicas'],
+  ['pl','plazas'],['f','fuentes']
+];
+var OPOS_STRINGS = ['proceso','dni','nombre','nombre_sig','cuerpo','cuerpo_nombre',
+  'especialidad','especialidad_codigo','acceso','motivo_exclusion','baremo_total',
+  'puntuacion','orden','fuentes'];
+var OPOS_FLAGS = ['reserva','seleccionado','modificacion','apto_practicas','nombrado',
+  'renuncia','aplazamiento','nueva_especialidad','pendiente_practicas'];
+var OPOS_ESTADOS = {
+  '': [null], 'admitidos': [function(r){return r.admitido===1;}],
+  'excluidos': [function(r){return r.admitido===0;}],
+  'seleccionados': [function(r){return r.seleccionado===1;}],
+  'aptos': [function(r){return r.apto_practicas===1;}],
+  'nombrados': [function(r){return r.nombrado===1;}],
+  'renuncias': [function(r){return r.renuncia===1;}],
+  'modificaciones': [function(r){return r.modificacion===1;}]
+};
+
+function oposYear(p) { var m = String(p||'').match(/(\d{4})/); return m ? parseInt(m[1],10) : 9999; }
+function oposFloat(v) { var n = parseFloat(String(v==null?'':v).replace(',', '.')); return isNaN(n) ? -1 : n; }
+function oposNum(v) { var m = String(v||'').match(/\d+/); return m ? parseFloat(m[0]) : 99999; }
+
+function oposPrepare() {
+  if (OP) return OP;
+  OP = OPOS_COMPACT.map(function(row) {
+    var r = {};
+    OPOS_FIELDS.forEach(function(pair) { r[pair[1]] = row[pair[0]]; });
+    OPOS_STRINGS.forEach(function(k) { if (r[k] == null) r[k] = ''; });
+    OPOS_FLAGS.forEach(function(k) { if (r[k] == null) r[k] = 0; });
+    if (r.plazas == null) r.plazas = 0;
+    r._proceso_year = oposYear(r.proceso);
+    r._acceso_num = oposNum(r.acceso);
+    r._orden_num = oposNum(r.orden);
+    r._puntuacion_num = oposFloat(r.puntuacion);
+    r._baremo_num = oposFloat(r.baremo_total);
+    r._cuerpo_label = [r.cuerpo, r.cuerpo_nombre].filter(Boolean).join(' - ');
+    return r;
+  });
+  OP.sort(function(a, b) {
+    return a._proceso_year - b._proceso_year ||
+      (a.proceso < b.proceso ? -1 : a.proceso > b.proceso ? 1 : 0) ||
+      (a.especialidad < b.especialidad ? -1 : a.especialidad > b.especialidad ? 1 : 0) ||
+      a._acceso_num - b._acceso_num ||
+      (a.nombre < b.nombre ? -1 : a.nombre > b.nombre ? 1 : 0);
+  });
+  return OP;
+}
+
+function oposFiltered(qs) {
+  var proc = qs.get('proceso') || '', cuerpo = qs.get('cuerpo') || '',
+      esp = qs.get('especialidad') || '', acceso = qs.get('acceso') || '',
+      estado = qs.get('estado') || '', texto = (qs.get('q') || '').toLowerCase();
+  var fn = (OPOS_ESTADOS[estado] || [null])[0];
+  return oposPrepare().filter(function(r) {
+    if (proc && r.proceso !== proc) return false;
+    if (cuerpo && r._cuerpo_label !== cuerpo) return false;
+    if (esp && r.especialidad !== esp) return false;
+    if (acceso && r.acceso !== acceso) return false;
+    if (fn && !fn(r)) return false;
+    if (texto && ((r.nombre || '') + ' ' + (r.nombre_sig || '') + ' ' + (r.dni || '')).toLowerCase().indexOf(texto) < 0) return false;
+    return true;
+  });
+}
+
+function oposSorted(rows, clave) {
+  var cmp;
+  if (clave === 'puntuacion') cmp = function(a,b){ return b._puntuacion_num - a._puntuacion_num; };
+  else if (clave === 'baremo') cmp = function(a,b){ return b._baremo_num - a._baremo_num; };
+  else if (clave === 'orden') cmp = function(a,b){ return a._orden_num - b._orden_num; };
+  else cmp = function(a,b){ return 0; };
+  return rows.slice().sort(function(a, b) {
+    if (a._proceso_year !== b._proceso_year) return a._proceso_year - b._proceso_year;
+    if (a.proceso !== b.proceso) return a.proceso < b.proceso ? -1 : 1;
+    if (a.especialidad !== b.especialidad) return a.especialidad < b.especialidad ? -1 : 1;
+    var c = cmp(a, b);
+    if (c) return c;
+    return a.nombre < b.nombre ? -1 : a.nombre > b.nombre ? 1 : 0;
+  });
+}
+
+function oposFiltersLocal() {
+  var rows = oposPrepare(), cuerpos = {}, accesos = {}, esps = {};
+  rows.forEach(function(r) {
+    if (r._cuerpo_label) cuerpos[r._cuerpo_label] = {code:r.cuerpo, label:r._cuerpo_label};
+    if (r.acceso) accesos[r.acceso] = oposNum(r.acceso);
+    var byProc = esps[r.proceso] || (esps[r.proceso] = {});
+    var e = byProc[r.especialidad] || (byProc[r.especialidad] = {nombre:r.especialidad,total:0,plazas:0});
+    e.total++;
+  });
+  var plazasEsp = {};
+  (OPM.plazas || []).forEach(function(p) {
+    var k = p.proceso + '|' + p.especialidad;
+    plazasEsp[k] = (plazasEsp[k] || 0) + (p.plazas || 0);
+  });
+  Object.keys(esps).forEach(function(proc) {
+    Object.keys(esps[proc]).forEach(function(nombre) {
+      esps[proc][nombre].plazas = plazasEsp[proc + '|' + nombre] || 0;
+    });
+  });
+  var plazasProc = {};
+  (OPM.plazas || []).forEach(function(p) {
+    plazasProc[p.proceso] = (plazasProc[p.proceso] || 0) + (p.plazas || 0);
+  });
+  var procesos = Object.keys(esps).map(function(proc) {
+    var items = Object.keys(esps[proc]).map(function(k){return esps[proc][k];});
+    return {id:proc, titulo:(OPM.procesos_labels||{})[proc] || proc,
+            total:items.reduce(function(a,e){return a+e.total;},0),
+            plazas:plazasProc[proc] || 0};
+  });
+  procesos.sort(function(a,b){ return oposYear(a.id)-oposYear(b.id) || (a.id<b.id?-1:a.id>b.id?1:0); });
+  var espOrdenado = {};
+  Object.keys(esps).sort(function(a,b){return oposYear(a)-oposYear(b)||(a<b?-1:1);}).forEach(function(proc) {
+    espOrdenado[proc] = Object.keys(esps[proc]).sort().map(function(k){return esps[proc][k];});
+  });
+  return {
+    procesos: procesos,
+    cuerpos: Object.keys(cuerpos).sort().map(function(k){return cuerpos[k];}),
+    especialidades: espOrdenado,
+    accesos: Object.keys(accesos).sort(function(a,b){return accesos[a]-accesos[b]||(a<b?-1:1);})
+      .map(function(k){return {label:k,num:accesos[k]};}),
+    estados: [['','Todos'],['admitidos','Admitidos'],['excluidos','Excluidos'],
+      ['seleccionados','Seleccionados'],['aptos','Aptos en prácticas'],
+      ['nombrados','Nombrados'],['renuncias','Renuncias'],
+      ['modificaciones','Con modificación']].map(function(x){return {id:x[0],label:x[1]};}),
+    resumen: {
+      generado: OPM.generado || '', total_registros: OPM.total_registros || rows.length,
+      total_modificaciones: OPM.total_modificaciones || 0,
+      documentos: (OPM.documentos || []).length, plazas: OPM.total_plazas || 0
+    },
+    procesos_labels: OPM.procesos_labels || {}
+  };
+}
+
+function oposStats(qs) {
+  var rows = oposFiltered(qs), proc = qs.get('proceso') || '', esp = qs.get('especialidad') || '';
+  var c = {admitidos:0,excluidos:0,seleccionados:0,aptos:0,nombrados:0,renuncias:0,
+    aplazamientos:0,pendientes:0,modificaciones:0,con_baremo:0,con_puntuacion:0};
+  var byProc = {}, byEsp = {}, byCuerpo = {}, byAcceso = {};
+  function inc(obj,k,n){ obj[k] = (obj[k] || 0) + (n || 1); }
+  var punt = [], bare = [];
+  rows.forEach(function(r) {
+    if (r.admitido === 1) c.admitidos++;
+    if (r.admitido === 0) c.excluidos++;
+    if (r.seleccionado === 1) c.seleccionados++;
+    if (r.apto_practicas === 1) c.aptos++;
+    if (r.nombrado === 1) c.nombrados++;
+    if (r.renuncia === 1) c.renuncias++;
+    if (r.aplazamiento === 1) c.aplazamientos++;
+    if (r.pendiente_practicas === 1) c.pendientes++;
+    if (r.modificacion === 1) c.modificaciones++;
+    if (r.baremo_total) c.con_baremo++;
+    if (r.puntuacion) c.con_puntuacion++;
+    if (r.seleccionado === 1 && r.puntuacion) punt.push(oposFloat(r.puntuacion));
+    if (r.admitido === 1 && r.baremo_total) bare.push(oposFloat(r.baremo_total));
+    inc(byProc, r.proceso); inc(byEsp, r.especialidad);
+    inc(byCuerpo, r._cuerpo_label); inc(byAcceso, r.acceso);
+  });
+  function dist(obj, limite, ordenar) {
+    var items = Object.keys(obj).map(function(k){return {nombre:k,total:obj[k]};});
+    items.sort(ordenar || function(a,b){return b.total-a.total;});
+    return limite ? items.slice(0,limite) : items;
+  }
+  var porConv = dist(byProc, null, function(a,b){return oposYear(a.nombre)-oposYear(b.nombre)||(a.nombre<b.nombre?-1:1);});
+  if (proc) porConv = [];
+  var plazasEsp = {}, plazas = 0;
+  (OPM.plazas || []).forEach(function(p) {
+    if (proc && p.proceso !== proc) return;
+    if (esp && p.especialidad !== esp) return;
+    plazas += p.plazas || 0;
+    plazasEsp[p.especialidad] = (plazasEsp[p.especialidad] || 0) + (p.plazas || 0);
+  });
+  var porEsp = dist(byEsp, esp ? null : 12);
+  porEsp.forEach(function(x){ x.plazas = plazasEsp[x.nombre] || 0; });
+  var porAcc = dist(byAcceso, 6, function(a,b){return oposNum(a.nombre)-oposNum(b.nombre)||(a.nombre<b.nombre?-1:1);});
+  function statsNumericos(vals) {
+    if (!vals.length) return {n:0,media:null,mediana:null,min:null,max:null};
+    var sorted = vals.slice().sort(function(a,b){return a-b;});
+    var sum = vals.reduce(function(a,b){return a+b;},0);
+    var mid = Math.floor(sorted.length/2);
+    var med = sorted.length % 2 ? sorted[mid] : (sorted[mid-1]+sorted[mid])/2;
+    return {n:vals.length, media:Math.round(sum/vals.length*10000)/10000,
+      mediana:Math.round(med*10000)/10000, min:sorted[0], max:sorted[sorted.length-1]};
+  }
+  var tasa = function(a,b){ return b ? Math.round(a/b*1000)/10 : 0; };
+  return Object.assign({}, c, {
+    total: rows.length, plazas: plazas,
+    tasas: {seleccion:tasa(c.seleccionados,c.admitidos), aptitud:tasa(c.aptos,c.seleccionados),
+      exclusion:tasa(c.excluidos,rows.length), baremo:tasa(c.con_baremo,rows.length)},
+    stats_puntuacion: statsNumericos(punt), stats_baremo: statsNumericos(bare),
+    por_convocatoria: porConv, por_especialidad: porEsp,
+    por_cuerpo: dist(byCuerpo, 8), por_acceso: porAcc
+  });
+}
+
+function oposPlazasLocal(qs) {
+  var proc = qs.get('proceso') || '', cuerpo = qs.get('cuerpo') || '', esp = qs.get('especialidad') || '';
+  var g = {}, out = [];
+  (OPM.plazas || []).forEach(function(p) {
+    if (proc && p.proceso !== proc) return;
+    if (cuerpo && p.cuerpo !== cuerpo) return;
+    if (esp && p.especialidad !== esp) return;
+    var k = [p.proceso,p.cuerpo,p.especialidad_codigo,p.especialidad].join('|');
+    g[k] = g[k] || {proceso:p.proceso,cuerpo:p.cuerpo,especialidad_codigo:p.especialidad_codigo,especialidad:p.especialidad,plazas:0};
+    g[k].plazas += p.plazas || 0;
+  });
+  Object.keys(g).forEach(function(k){out.push(g[k]);});
+  out.sort(function(a,b){return oposYear(a.proceso)-oposYear(b.proceso)||(a.proceso<b.proceso?-1:a.proceso>b.proceso?1:0)||(a.cuerpo<b.cuerpo?-1:1)||(a.especialidad<b.especialidad?-1:1);});
+  return out;
+}
+
+var OPOS_CSV_COLS = [
+  ['proceso','Convocatoria'],['dni','DNI'],['nombre','Nombre'],['cuerpo_nombre','Cuerpo'],
+  ['especialidad','Especialidad'],['plazas','Plazas convocadas'],['acceso','Acceso'],
+  ['admitido','Admitido'],['motivo_exclusion','Motivo exclusión'],['baremo_total','Baremo total'],
+  ['puntuacion','Puntuación'],['orden','Orden'],['seleccionado','Seleccionado'],
+  ['apto_practicas','Apto prácticas'],['nombrado','Nombrado'],['renuncia','Renuncia'],
+  ['aplazamiento','Aplazamiento'],['modificacion','Modificado'],['fuentes','Fuentes']
+];
+function oposCsvCell(v) {
+  var s = v == null ? '' : String(v);
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+}
+function oposCsv(qs) {
+  var rows = oposSorted(oposFiltered(qs), qs.get('sort') || 'nombre');
+  var lineas = [OPOS_CSV_COLS.map(function(c){return oposCsvCell(c[1]);}).join(',')];
+  rows.forEach(function(r) {
+    lineas.push(OPOS_CSV_COLS.map(function(c){return oposCsvCell(r[c[0]]);}).join(','));
+  });
+  return lineas.join('\r\n') + '\r\n';
+}
+
 var _origFetch = window.fetch;
 window.fetch = function(url, opts) {
   var u = typeof url === 'string' ? url : (url.url || url.href || '');
-  function _p(d) { return Promise.resolve({ok:true,status:200,statusText:'OK',json:function(){return Promise.resolve(d);}}); }
+  function _p(d) {
+    var texto = typeof d === 'string' ? d : JSON.stringify(d);
+    return Promise.resolve({ok:true,status:200,statusText:'OK',
+      json:function(){return Promise.resolve(d);},
+      text:function(){return Promise.resolve(texto);},
+      blob:function(){return Promise.resolve(new Blob([texto],{type:'text/plain;charset=utf-8'}));}});
+  }
   if (u === '/api/data') return _p(SU);
   if (u.indexOf('/api/stats') === 0) {
     var _cs = new URLSearchParams(u.split('?')[1]||'').get('curso')||'';
@@ -463,6 +725,25 @@ window.fetch = function(url, opts) {
   if (u.indexOf('/api/profesorado/cursos') === 0) return _p(PC);
   if (u.indexOf('/api/centros/profesores?') === 0) return _p(centroProfesores(u));
   if (u === '/api/centros') return _p(CE);
+  if (u.indexOf('/api/oposiciones/filters') === 0) return _p(oposFiltersLocal());
+  if (u.indexOf('/api/oposiciones/stats') === 0) {
+    return _p(oposStats(new URLSearchParams(u.split('?')[1]||'')));
+  }
+  if (u.indexOf('/api/oposiciones/plazas') === 0) {
+    return _p(oposPlazasLocal(new URLSearchParams(u.split('?')[1]||'')));
+  }
+  if (u.indexOf('/api/oposiciones/csv') === 0) {
+    return _p(oposCsv(new URLSearchParams(u.split('?')[1]||'')));
+  }
+  if (u.indexOf('/api/oposiciones') === 0) {
+    var qs2 = new URLSearchParams(u.split('?')[1]||'');
+    var filas = oposSorted(oposFiltered(qs2), qs2.get('sort') || 'nombre');
+    var pagina = Math.max(1, parseInt(qs2.get('page')||'1',10) || 1);
+    var tamano = Math.min(200, Math.max(1, parseInt(qs2.get('page_size')||'50',10) || 50));
+    return _p({total:filas.length, pagina:pagina,
+      paginas:Math.max(1, Math.ceil(filas.length/tamano)), tamano:tamano,
+      filas:filas.slice((pagina-1)*tamano, pagina*tamano)});
+  }
   if (u.indexOf('/api/publish') >= 0) return _p({ok:false,message:'Solo disponible en local'});
   return _origFetch ? _origFetch(url, opts) : Promise.reject(new Error('fetch not available: '+u));
 };
@@ -488,6 +769,7 @@ AS.forEach(function(r){if(!r._tipo_label){if(r.tipo==='definitiva_funcionarios')
   <button class="tab" onclick="switchTab('sustituciones',this)">Sustituciones diarias</button>
   <button class="tab" onclick="switchTab('traslados',this)">Concurso de Traslados</button>
       <button class="tab" onclick="switchTab('funcionarios',this)">Funcionarios</button>
+  <button class="tab" onclick="switchTab('oposiciones',this)">Oposiciones CM</button>
   <button class="tab" onclick="switchTab('centros',this)">Centros Educativos</button>
   <button class="tab" onclick="switchTab('persona',this)">🔍 Persona</button>
 </div>
@@ -782,6 +1064,66 @@ AS.forEach(function(r){if(!r._tipo_label){if(r.tipo==='definitiva_funcionarios')
   </div>
 </div>
 -->
+
+<div id="tab-oposiciones" style="display:none">
+  <div class="stats" id="opoStats"><div class="loading">Cargando estadísticas de oposiciones...</div></div>
+  <div class="search-section">
+    <div class="search-row">
+      <div class="search-group">
+        <label>Convocatoria</label>
+        <select id="opoFilterProceso"><option value="">Todas</option></select>
+      </div>
+      <div class="search-group">
+        <label>Cuerpo</label>
+        <select id="opoFilterCuerpo"><option value="">Todos</option></select>
+      </div>
+      <div class="search-group">
+        <label>Especialidad</label>
+        <select id="opoFilterEsp"><option value="">Todas</option></select>
+      </div>
+      <div class="search-group">
+        <label>Acceso</label>
+        <select id="opoFilterAcceso"><option value="">Todos</option></select>
+      </div>
+      <div class="search-group">
+        <label>Estado</label>
+        <select id="opoFilterEstado"><option value="">Todos</option></select>
+      </div>
+      <div class="search-group">
+        <label>Ordenar por</label>
+        <select id="opoSort">
+          <option value="nombre">Convocatoria (asc)</option>
+          <option value="puntuacion">Puntuación (desc)</option>
+          <option value="baremo">Baremo (desc)</option>
+          <option value="orden">Orden oficial (asc)</option>
+        </select>
+      </div>
+      <div class="search-group" style="flex:2">
+        <label>Buscar</label>
+        <input type="text" id="opoSearch" placeholder="Nombre, apellidos o DNI..." autocomplete="off" style="width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem;font-family:'Inter',sans-serif">
+      </div>
+      <div class="search-group" style="flex:0 0 auto">
+        <label>&nbsp;</label>
+        <button class="btn-export" onclick="opoReset()" style="padding:10px 18px">Limpiar</button>
+      </div>
+    </div>
+  </div>
+  <div class="results-section">
+    <div class="results-header">
+      <h2>Aspirantes <span class="count-badge" id="opoResultCount">0</span></h2>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button class="btn-export" onclick="opoExportar()">⬇ Exportar CSV</button>
+        <div class="pagination">
+          <button id="opoPrevPage" onclick="opoCambiarPagina(-1)" disabled>← Anterior</button>
+          <span id="opoPageInfo">1 / 1</span>
+          <button id="opoNextPage" onclick="opoCambiarPagina(1)" disabled>Siguiente →</button>
+        </div>
+      </div>
+    </div>
+    <div class="table-wrap" id="opoTableWrap"><div class="loading">Cargando datos de oposiciones...</div></div>
+    <div id="opoPlazasWrap" class="opo-plazas"></div>
+  </div>
+</div>
 
 <div id="tab-centros" style="display:none">
   <div class="search-section">
@@ -2573,7 +2915,8 @@ const PERSONA_SECTIONS = [
   {key:'tr', label:'Traslados · adjudicaciones definitivas', tab:'traslados', input:'trSearchDestino', filter:'trFilterCurso'},
   {key:'fn', label:'Funcionarios · participantes en concursos', tab:'funcionarios', input:'fnSearch', filter:'fnFilterCurso'},
   {key:'li', label:'Listas de interinos', tab:'listas', input:'liSearchNombre', filter:'liFilterCurso'},
-  {key:'op', label:'Oposiciones · listas de seleccionados', tab:'funcionarios', input:'fnSearch', filter:'fnFilterConv'}
+  {key:'op', label:'Oposiciones · listas de seleccionados', tab:'funcionarios', input:'fnSearch', filter:'fnFilterConv'},
+  {key:'oc', label:'Oposiciones CM · todas las convocatorias', tab:'oposiciones', input:'opoSearch', filter:'opoFilterProceso'}
 ];
 const PERSONA_COLUMNS = {
   as: [
@@ -2613,7 +2956,14 @@ const PERSONA_COLUMNS = {
     {l:'Convocatoria',k:'_convocatoria_opo'}, {l:'Cuerpo',f:r=>r._cuerpo_label||r.cuerpo},
     {l:'Especialidad',k:'_especialidad_opo'}, {l:'Acceso',k:'_acceso_opo'},
     {l:'Orden',k:'_orden_opo'}, {l:'Puntuación',k:'_puntuacion_opo'},
-    {l:'Reserva',f:r=>r._reserva_opo?'Sí':''}, {l:'DNI',k:'dni'}]
+    {l:'Reserva',f:r=>r._reserva_opo?'Sí':''}, {l:'DNI',k:'dni'}],
+  oc: [
+    {l:'Convocatoria',k:'proceso'},
+    {l:'Cuerpo',f:r=>[r.cuerpo,r.cuerpo_nombre].filter(Boolean).join(' - ')},
+    {l:'Especialidad',k:'especialidad'}, {l:'Acceso',k:'acceso'},
+    {l:'Puntuación',k:'puntuacion'}, {l:'Orden',k:'orden'},
+    {l:'Estado',f:r=>r.seleccionado===1?'Seleccionado':(r.admitido===0?'Excluido':(r.admitido===1?'Admitido':'Inscrito'))},
+    {l:'DNI',k:'dni'}]
 };
 const PERSONA_PAGE = 20;
 let personaData = null, personaLimits = {}, personaSuggestTimer = null, personaShowEsp = {};
@@ -2716,7 +3066,8 @@ function personaTable(src, rows, limit, showLink) {
     });
     if (link) {
       var sec = PERSONA_SECTIONS.find(s => s.key === src);
-      var fval = src === 'op' ? (r._convocatoria_opo || '') : (r.curso || '');
+      var fval = src === 'op' ? (r._convocatoria_opo || '')
+                 : src === 'oc' ? (r.proceso || '') : (r.curso || '');
       h += '<td><button class="persona-link" onclick="irAPestana(\'' + pJs(sec.tab) + '\',\''
          + pJs(sec.input) + '\',\'' + pJs(sec.filter || '') + '\',\'' + pJs(fval)
          + '\')">Ver en pestaña</button></td>';
@@ -2814,6 +3165,223 @@ function renderPersona(d) {
   out.innerHTML = h;
 }
 
+// ---------------------------------------------------------------------------
+// Pestaña Oposiciones CM
+// ---------------------------------------------------------------------------
+var opoReady = false, opoPage = 1, opoPages = 1, opoMeta = null;
+
+function opoValor(id) { var el = document.getElementById(id); return el ? el.value : ''; }
+
+function opoParams(conPagina) {
+  var p = new URLSearchParams();
+  [['proceso', 'opoFilterProceso'], ['cuerpo', 'opoFilterCuerpo'],
+   ['especialidad', 'opoFilterEsp'], ['acceso', 'opoFilterAcceso'],
+   ['estado', 'opoFilterEstado'], ['sort', 'opoSort']].forEach(function(pair) {
+    var v = opoValor(pair[1]);
+    if (v) p.set(pair[0], v);
+  });
+  var q = (document.getElementById('opoSearch').value || '').trim();
+  if (q) p.set('q', q);
+  if (conPagina) {
+    p.set('page', opoPage);
+    p.set('page_size', '50');
+  }
+  return p;
+}
+
+function opoUrl(ruta, conPagina) { return ruta + '?' + opoParams(conPagina).toString(); }
+
+function opoOpciones(sel, items, placeholder, valueKey, labelKey) {
+  var actual = sel.value;
+  sel.innerHTML = '';
+  var opt = document.createElement('option');
+  opt.value = ''; opt.textContent = placeholder; sel.appendChild(opt);
+  (items || []).forEach(function(item) {
+    var o = document.createElement('option');
+    o.value = valueKey ? item[valueKey] : item;
+    o.textContent = labelKey ? item[labelKey] : item;
+    sel.appendChild(o);
+  });
+  if (Array.prototype.some.call(sel.options, function(o) { return o.value === actual; })) sel.value = actual;
+}
+
+function opoActualizarEsp() {
+  var proc = opoValor('opoFilterProceso');
+  var sel = document.getElementById('opoFilterEsp');
+  if (!opoMeta) return;
+  var items;
+  if (proc) {
+    items = opoMeta.especialidades[proc] || [];
+  } else {
+    var vistos = {}, salida = [];
+    Object.keys(opoMeta.especialidades).forEach(function(k) {
+      opoMeta.especialidades[k].forEach(function(e) {
+        if (!vistos[e.nombre]) { vistos[e.nombre] = 1; salida.push(e); }
+      });
+    });
+    salida.sort(function(a, b) { return a.nombre < b.nombre ? -1 : (a.nombre > b.nombre ? 1 : 0); });
+    items = salida;
+  }
+  opoOpciones(sel, items, 'Todas', 'nombre', 'nombre');
+}
+
+function initOposiciones() {
+  fetch('/api/oposiciones/filters')
+    .then(function(r) { return r.json(); })
+    .then(function(f) {
+      opoMeta = f;
+      opoOpciones(document.getElementById('opoFilterProceso'), f.procesos, 'Todas', 'id', 'titulo');
+      opoOpciones(document.getElementById('opoFilterCuerpo'), f.cuerpos, 'Todos', 'label', 'label');
+      opoOpciones(document.getElementById('opoFilterAcceso'), f.accesos, 'Todos', 'label', 'label');
+      opoOpciones(document.getElementById('opoFilterEstado'), f.estados, 'Todos', 'id', 'label');
+      opoActualizarEsp();
+      opoRefresh();
+    })
+    .catch(function(e) {
+      console.error(e);
+      document.getElementById('opoTableWrap').innerHTML = '<div class="empty">No se pudieron cargar las oposiciones.</div>';
+    });
+}
+
+function opoNum(v) { return Number(v || 0).toLocaleString('es-ES'); }
+
+function opoBadges(r) {
+  var b = [];
+  if (r.seleccionado === 1) b.push('<span class="opo-badge ok">Seleccionado</span>');
+  if (r.apto_practicas === 1) b.push('<span class="opo-badge info">Apto prácticas</span>');
+  if (r.nombrado === 1) b.push('<span class="opo-badge ok">Nombrado</span>');
+  if (r.admitido === 1 && r.seleccionado !== 1) b.push('<span class="opo-badge info">Admitido</span>');
+  if (r.admitido === 0) b.push('<span class="opo-badge bad">Excluido' + (r.motivo_exclusion ? ' ' + esc(r.motivo_exclusion) : '') + '</span>');
+  if (r.renuncia === 1) b.push('<span class="opo-badge warn">Renuncia</span>');
+  if (r.modificacion === 1) b.push('<span class="opo-badge warn">Modificado</span>');
+  return b.length ? b.join(' ') : '<span class="opo-badge info">Inscrito</span>';
+}
+
+function opoRender(rows, stats, plazas) {
+  var s = stats || {};
+  var resumen = (opoMeta && opoMeta.resumen) || {};
+  document.getElementById('opoStats').innerHTML = [
+    ['Registros', opoNum(s.total)],
+    ['Admitidos', opoNum(s.admitidos)],
+    ['Seleccionados', opoNum(s.seleccionados), s.tasas ? (s.tasas.seleccion + '% sobre admitidos') : ''],
+    ['Aptos en prácticas', opoNum(s.aptos)],
+    ['Plazas convocadas', opoNum(s.plazas)],
+    ['Documentos oficiales', opoNum(resumen.documentos)]
+  ].map(function(x) {
+    return '<div class="stat-card"><div class="label">' + x[0] + '</div><div class="value">' + x[1] + '</div>' +
+      (x[2] ? '<div style="font-size:.8rem;color:#6b7280">' + x[2] + '</div>' : '') + '</div>';
+  }).join('');
+
+  var cols = [
+    ['nombre', 'Nombre'], ['proceso', 'Convocatoria'], ['_cuerpo_label', 'Cuerpo'],
+    ['especialidad', 'Especialidad'], ['acceso', 'Acceso'], ['dni', 'DNI'],
+    ['puntuacion', 'Puntuación'], ['orden', 'Orden']
+  ];
+  var h = '<table><thead><tr>' + cols.map(function(c) {
+    return '<th style="cursor:pointer" onclick="opoSetSort(\'' +
+      (c[0] === 'proceso' ? 'nombre' : c[0]) + '\')">' + c[1] + '</th>';
+  }).join('') + '<th>Estado</th></tr></thead><tbody>';
+  if (!rows.length) {
+    h += '<tr><td colspan="9" class="empty">Sin resultados con estos filtros.</td></tr>';
+  }
+  rows.forEach(function(r) {
+    var procLabel = (opoMeta && opoMeta.procesos_labels && opoMeta.procesos_labels[r.proceso]) || r.proceso;
+    h += '<tr>' +
+      '<td><strong>' + esc(r.nombre) + '</strong>' + (r.nombre_sig && r.nombre_sig !== r.nombre ? '<br><span style="font-size:.75rem;color:#6b7280">' + esc(r.nombre_sig) + '</span>' : '') + '</td>' +
+      '<td>' + esc(procLabel) + '</td>' +
+      '<td>' + esc(r._cuerpo_label || r.cuerpo_nombre) + '</td>' +
+      '<td>' + esc(r.especialidad) + '</td>' +
+      '<td>' + esc(r.acceso) + '</td>' +
+      '<td>' + esc(r.dni) + '</td>' +
+      '<td>' + esc(r.puntuacion || '—') + '</td>' +
+      '<td>' + esc(r.orden || '—') + '</td>' +
+      '<td>' + opoBadges(r) + '</td></tr>';
+  });
+  h += '</tbody></table>';
+  document.getElementById('opoTableWrap').innerHTML = h;
+
+  var pl = plazas || [];
+  var ph = '<details><summary>Reparto oficial de plazas (' + opoNum(pl.length) + ' líneas)</summary>' +
+    '<table style="margin-top:8px"><thead><tr><th>Convocatoria</th><th>Cuerpo</th><th>Especialidad</th><th>Plazas</th></tr></thead><tbody>' +
+    pl.slice(0, 20).map(function(p) {
+      return '<tr><td>' + esc(p.proceso) + '</td><td>' + esc(p.cuerpo) + '</td><td>' +
+        esc(p.especialidad) + '</td><td>' + p.plazas + '</td></tr>';
+    }).join('') + '</tbody></table>' + (pl.length > 20 ? '<p style="font-size:.78rem;color:#6b7280">Mostrando las 20 primeras líneas; exporta el CSV para verlas todas.</p>' : '') + '</details>';
+  document.getElementById('opoPlazasWrap').innerHTML = ph;
+}
+
+function opoRefresh() {
+  document.getElementById('opoTableWrap').innerHTML = '<div class="loading">Cargando datos de oposiciones...</div>';
+  Promise.all([
+    fetch(opoUrl('/api/oposiciones/stats', false)).then(function(r) { return r.json(); }),
+    fetch(opoUrl('/api/oposiciones', true)).then(function(r) { return r.json(); }),
+    fetch(opoUrl('/api/oposiciones/plazas', false)).then(function(r) { return r.json(); })
+  ]).then(function(d) {
+    var datos = d[1];
+    opoPages = datos.paginas || 1;
+    if (opoPage > opoPages) { opoPage = opoPages; return opoRefresh(); }
+    document.getElementById('opoResultCount').textContent = opoNum(datos.total);
+    document.getElementById('opoPageInfo').textContent = opoPage + ' / ' + opoPages;
+    document.getElementById('opoPrevPage').disabled = opoPage <= 1;
+    document.getElementById('opoNextPage').disabled = opoPage >= opoPages;
+    opoRender(datos.filas || [], d[0], d[2]);
+  }).catch(function(e) {
+    console.error(e);
+    document.getElementById('opoTableWrap').innerHTML = '<div class="empty">Error al cargar los datos.</div>';
+  });
+}
+
+function opoCambiarPagina(delta) {
+  var n = opoPage + delta;
+  if (n < 1 || n > opoPages) return;
+  opoPage = n;
+  opoRefresh();
+}
+
+function opoSetSort(clave) {
+  var sel = document.getElementById('opoSort');
+  if (Array.prototype.some.call(sel.options, function(o) { return o.value === clave; })) sel.value = clave;
+  opoPage = 1;
+  opoRefresh();
+}
+
+function opoReset() {
+  ['opoFilterProceso', 'opoFilterCuerpo', 'opoFilterAcceso', 'opoFilterEstado', 'opoSort'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el && el.options.length) el.value = el.options[0].value;
+  });
+  document.getElementById('opoSearch').value = '';
+  opoActualizarEsp();
+  opoPage = 1;
+  opoRefresh();
+}
+
+function opoExportar() {
+  fetch(opoUrl('/api/oposiciones/csv', false))
+    .then(function(r) { return r.blob(); })
+    .then(function(b) {
+      var url = URL.createObjectURL(b);
+      var a = document.createElement('a');
+      a.href = url; a.download = 'oposiciones_cm.csv';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function() { URL.revokeObjectURL(url); }, 2000);
+    })
+    .catch(function(e) { console.error(e); alert('No se pudo exportar el CSV'); });
+}
+
+['opoFilterProceso', 'opoFilterCuerpo', 'opoFilterAcceso', 'opoFilterEstado', 'opoSort'].forEach(function(id) {
+  document.getElementById(id).addEventListener('change', function() {
+    if (id === 'opoFilterProceso') opoActualizarEsp();
+    opoPage = 1;
+    opoRefresh();
+  });
+});
+var opoSearchTimer;
+document.getElementById('opoSearch').addEventListener('input', function() {
+  clearTimeout(opoSearchTimer);
+  opoSearchTimer = setTimeout(function() { opoPage = 1; opoRefresh(); }, 250);
+});
+
 function publicarCloud() {
   var btn = document.getElementById('btnPublish');
   btn.disabled = true; btn.textContent = '⏳ Publicando...';
@@ -2839,7 +3407,9 @@ function switchTab(name, btn) {
   document.getElementById('tab-traslados').style.display = name === 'traslados' ? '' : 'none';
   document.getElementById('tab-centros').style.display = name === 'centros' ? '' : 'none';
   document.getElementById('tab-funcionarios').style.display = name === 'funcionarios' ? '' : 'none';
+  document.getElementById('tab-oposiciones').style.display = name === 'oposiciones' ? '' : 'none';
   document.getElementById('tab-persona').style.display = name === 'persona' ? '' : 'none';
+  if (name === 'oposiciones') initOposiciones();
   if (name === 'persona') initPersona();
   if (name === 'sustituciones') loadSustituciones();
   if (name === 'traslados') loadTraslados();
