@@ -87,12 +87,39 @@ tr:hover td{background:#fafbff}
 .persona-note{background:#fffbeb;border:1px solid #fde68a;color:#854d0e;border-radius:8px;padding:10px 14px;font-size:.82rem;margin-bottom:16px}
 .persona-subtitle{color:#6b7280;font-size:.78rem;font-weight:600;margin:6px 20px 4px;text-transform:uppercase;letter-spacing:.04em}
 .persona-link{background:none;border:none;color:#2563eb;cursor:pointer;font-size:.75rem;padding:0;font-family:'Inter',sans-serif;text-decoration:underline}
-.opo-badge{display:inline-block;padding:2px 7px;border-radius:12px;font-size:.72rem;font-weight:600;white-space:nowrap}
-.opo-badge.ok{background:#dcfce7;color:#166534}
-.opo-badge.warn{background:#fef3c7;color:#92400e}
-.opo-badge.info{background:#dbeafe;color:#1e40af}
-.opo-badge.bad{background:#fee2e2;color:#991b1b}
-.opo-plazas{margin-top:16px}
+#tab-oposiciones .stats{grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:16px 0}
+.opo-card{background:#fff;border:1px solid #d9e0e8;border-radius:12px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.opo-card .label{font-size:.75rem;color:#5f6368;text-transform:none;letter-spacing:0}
+.opo-card .value{font-size:1.65rem;font-weight:680;letter-spacing:-.5px}
+.opo-card .detalle{font-size:.75rem;color:#5f6368;margin-top:2px}
+.opo-card.azul .value{color:#14509b}
+.opo-card.verde .value{color:#1b7a4b}
+.opo-card.naranja .value{color:#b35900}
+.opo-card.rojo .value{color:#b3261e}
+.opo-charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:14px;margin-bottom:20px;align-items:start}
+.opo-panel{background:#fff;border:1px solid #d9e0e8;border-radius:12px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.05);margin-bottom:14px}
+.opo-panel h2{margin:0 0 10px;font-size:.95rem;font-weight:650}
+.opo-mini{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:10px}
+.opo-mini>div{background:#e8f1fc;border-radius:8px;padding:8px 10px}
+.opo-mini b{display:block;font-size:1rem;color:#14509b}
+.opo-mini span{font-size:.69rem;color:#5f6368;display:block}
+.opo-barra-fila{display:grid;grid-template-columns:minmax(110px,190px) 1fr 52px;gap:8px;align-items:center;margin:6px 0}
+.opo-barra-fila .nombre{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.75rem}
+.opo-barra{background:#edf2f7;border-radius:6px;height:10px;overflow:hidden}
+.opo-barra i{display:block;height:100%;background:linear-gradient(90deg,#2f7fd1,#14509b);border-radius:6px}
+.opo-barra-fila .valor{text-align:right;font-variant-numeric:tabular-nums;font-size:.75rem}
+.opo-filtros-activos{font-size:.78rem;color:#6b7280;margin-top:4px}
+.opo-primary{background:#14509b;color:#fff;border-color:#14509b}
+.opo-primary:hover{background:#0f4387}
+#tab-oposiciones table{font-size:.79rem}
+#tab-oposiciones th,#tab-oposiciones td{padding:8px 10px;white-space:nowrap}
+#tab-oposiciones td.num{text-align:right;font-variant-numeric:tabular-nums}
+.opo-chip{display:inline-block;padding:1px 7px;border-radius:10px;font-size:.69rem;margin-right:3px}
+.opo-chip.si{background:#e6f4ea;color:#1b7a4b}
+.opo-chip.no{background:#fce8e6;color:#b3261e}
+.opo-chip.info{background:#e8f1fc;color:#14509b}
+.opo-chip.warn{background:#fff3e0;color:#b35900}
+.opo-footer{color:#5f6368;font-size:.75rem;line-height:1.5;margin:14px 2px 0}
 .opo-link{color:#2563eb;text-decoration:none}
 .opo-link:hover{text-decoration:underline}
 @media(max-width:768px){
@@ -586,8 +613,21 @@ function oposStats(qs) {
   var rows = oposFiltered(qs), proc = qs.get('proceso') || '', esp = qs.get('especialidad') || '';
   var c = {admitidos:0,excluidos:0,seleccionados:0,aptos:0,nombrados:0,renuncias:0,
     aplazamientos:0,pendientes:0,modificaciones:0,con_baremo:0,con_puntuacion:0};
-  var byProc = {}, byEsp = {}, byCuerpo = {}, byAcceso = {};
-  function inc(obj,k,n){ obj[k] = (obj[k] || 0) + (n || 1); }
+  var dProc = {index:{},items:[]}, dEsp = {index:{},items:[]},
+      dCuerpo = {index:{},items:[]}, dAcceso = {index:{},items:[]};
+  function addDist(coleccion, campo, r) {
+    var clave = r[campo] || '', item = coleccion.index[clave];
+    if (!item) {
+      item = coleccion.index[clave] = {};
+      item[campo] = clave; item.nombre = clave;
+      item.total = 0; item.admitidos = 0; item.seleccionados = 0; item.aptos = 0;
+      coleccion.items.push(item);
+    }
+    item.total++;
+    if (r.admitido === 1) item.admitidos++;
+    if (r.seleccionado === 1) item.seleccionados++;
+    if (r.apto_practicas === 1) item.aptos++;
+  }
   var punt = [], bare = [];
   rows.forEach(function(r) {
     if (r.admitido === 1) c.admitidos++;
@@ -603,16 +643,16 @@ function oposStats(qs) {
     if (r.puntuacion) c.con_puntuacion++;
     if (r.seleccionado === 1 && r.puntuacion) punt.push(oposFloat(r.puntuacion));
     if (r.admitido === 1 && r.baremo_total) bare.push(oposFloat(r.baremo_total));
-    inc(byProc, r.proceso); inc(byEsp, r.especialidad);
-    inc(byCuerpo, r._cuerpo_label); inc(byAcceso, r.acceso);
+    addDist(dProc, 'proceso', r); addDist(dEsp, 'especialidad', r);
+    addDist(dCuerpo, 'cuerpo_nombre', r); addDist(dAcceso, 'acceso', r);
   });
-  function dist(obj, limite, ordenar) {
-    var items = Object.keys(obj).map(function(k){return {nombre:k,total:obj[k]};});
+  function dist(coleccion, limite, ordenar) {
+    var items = coleccion.items.slice();
     items.sort(ordenar || function(a,b){return b.total-a.total;});
     return limite ? items.slice(0,limite) : items;
   }
-  var porConv = dist(byProc, null, function(a,b){return oposYear(a.nombre)-oposYear(b.nombre)||(a.nombre<b.nombre?-1:1);});
-  if (proc) porConv = [];
+  var porConv = proc ? [] : dist(dProc, null,
+    function(a,b){return oposYear(a.proceso)-oposYear(b.proceso)||(a.proceso<b.proceso?-1:1);});
   var plazasEsp = {}, plazas = 0;
   (OPM.plazas || []).forEach(function(p) {
     if (proc && p.proceso !== proc) return;
@@ -620,9 +660,10 @@ function oposStats(qs) {
     plazas += p.plazas || 0;
     plazasEsp[p.especialidad] = (plazasEsp[p.especialidad] || 0) + (p.plazas || 0);
   });
-  var porEsp = dist(byEsp, esp ? null : 12);
-  porEsp.forEach(function(x){ x.plazas = plazasEsp[x.nombre] || 0; });
-  var porAcc = dist(byAcceso, 6, function(a,b){return oposNum(a.nombre)-oposNum(b.nombre)||(a.nombre<b.nombre?-1:1);});
+  var porEsp = esp ? [] : dist(dEsp, 12);
+  porEsp.forEach(function(x){ x.plazas = plazasEsp[x.especialidad] || 0; });
+  var porCuerpo = dist(dCuerpo, 8);
+  var porAcc = dist(dAcceso, 6, function(a,b){return oposNum(a.acceso)-oposNum(b.acceso)||(a.acceso<b.acceso?-1:1);});
   function statsNumericos(vals) {
     if (!vals.length) return {n:0,media:null,mediana:null,min:null,max:null};
     var sorted = vals.slice().sort(function(a,b){return a-b;});
@@ -639,7 +680,7 @@ function oposStats(qs) {
       exclusion:tasa(c.excluidos,rows.length), baremo:tasa(c.con_baremo,rows.length)},
     stats_puntuacion: statsNumericos(punt), stats_baremo: statsNumericos(bare),
     por_convocatoria: porConv, por_especialidad: porEsp,
-    por_cuerpo: dist(byCuerpo, 8), por_acceso: porAcc
+    por_cuerpo: porCuerpo, por_acceso: porAcc
   });
 }
 
@@ -1067,6 +1108,7 @@ AS.forEach(function(r){if(!r._tipo_label){if(r.tipo==='definitiva_funcionarios')
 
 <div id="tab-oposiciones" style="display:none">
   <div class="stats" id="opoStats"><div class="loading">Cargando estadísticas de oposiciones...</div></div>
+  <div class="opo-charts" id="opoGraficos"></div>
   <div class="search-section">
     <div class="search-row">
       <div class="search-group">
@@ -1074,16 +1116,8 @@ AS.forEach(function(r){if(!r._tipo_label){if(r.tipo==='definitiva_funcionarios')
         <select id="opoFilterProceso"><option value="">Todas</option></select>
       </div>
       <div class="search-group">
-        <label>Cuerpo</label>
-        <select id="opoFilterCuerpo"><option value="">Todos</option></select>
-      </div>
-      <div class="search-group">
         <label>Especialidad</label>
         <select id="opoFilterEsp"><option value="">Todas</option></select>
-      </div>
-      <div class="search-group">
-        <label>Acceso</label>
-        <select id="opoFilterAcceso"><option value="">Todos</option></select>
       </div>
       <div class="search-group">
         <label>Estado</label>
@@ -1092,37 +1126,52 @@ AS.forEach(function(r){if(!r._tipo_label){if(r.tipo==='definitiva_funcionarios')
       <div class="search-group">
         <label>Ordenar por</label>
         <select id="opoSort">
-          <option value="nombre">Convocatoria (asc)</option>
-          <option value="puntuacion">Puntuación (desc)</option>
-          <option value="baremo">Baremo (desc)</option>
-          <option value="orden">Orden oficial (asc)</option>
+          <option value="nombre">Nombre</option>
+          <option value="puntuacion">Puntuación (mayor a menor)</option>
+          <option value="baremo">Baremo (mayor a menor)</option>
+          <option value="orden">Nº de orden</option>
         </select>
       </div>
       <div class="search-group" style="flex:2">
-        <label>Buscar</label>
-        <input type="text" id="opoSearch" placeholder="Nombre, apellidos o DNI..." autocomplete="off" style="width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem;font-family:'Inter',sans-serif">
+        <label>Buscar por nombre o DNI</label>
+        <input type="text" id="opoSearch" placeholder="Ej. García, ****1234*" autocomplete="off" style="width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem;font-family:'Inter',sans-serif">
+      </div>
+      <div class="search-group">
+        <label>Tamaño de página</label>
+        <select id="opoPageSize">
+          <option value="25">25</option><option value="50" selected>50</option>
+          <option value="100">100</option><option value="200">200</option>
+        </select>
       </div>
       <div class="search-group" style="flex:0 0 auto">
         <label>&nbsp;</label>
-        <button class="btn-export" onclick="opoReset()" style="padding:10px 18px">Limpiar</button>
+        <button class="btn-export" onclick="opoReset()">Limpiar filtros</button>
+      </div>
+      <div class="search-group" style="flex:0 0 auto">
+        <label>&nbsp;</label>
+        <button class="btn-export opo-primary" onclick="opoExportar()">⬇ Exportar CSV</button>
       </div>
     </div>
   </div>
   <div class="results-section">
     <div class="results-header">
-      <h2>Aspirantes <span class="count-badge" id="opoResultCount">0</span></h2>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <button class="btn-export" onclick="opoExportar()">⬇ Exportar CSV</button>
-        <div class="pagination">
-          <button id="opoPrevPage" onclick="opoCambiarPagina(-1)" disabled>← Anterior</button>
-          <span id="opoPageInfo">1 / 1</span>
-          <button id="opoNextPage" onclick="opoCambiarPagina(1)" disabled>Siguiente →</button>
-        </div>
+      <div>
+        <h2>Aspirantes <span class="count-badge" id="opoResultCount">0</span></h2>
+        <div class="opo-filtros-activos" id="opoFiltrosActivos"></div>
+      </div>
+      <div class="pagination">
+        <button id="opoPrevPage" onclick="opoCambiarPagina(-1)" disabled>← Anterior</button>
+        <span id="opoPageInfo">1 / 1</span>
+        <button id="opoNextPage" onclick="opoCambiarPagina(1)" disabled>Siguiente →</button>
       </div>
     </div>
     <div class="table-wrap" id="opoTableWrap"><div class="loading">Cargando datos de oposiciones...</div></div>
-    <div id="opoPlazasWrap" class="opo-plazas"></div>
   </div>
+  <p class="opo-footer"><strong>Notas.</strong> «Admitidos» equivale a las personas incluidas en los listados definitivos de admitidos;
+    «seleccionados» son las incluidas en las listas de seleccionados y «aptos» las declaradas aptas en fase de prácticas.
+    «Plazas» es el reparto definitivo publicado por la Comunidad de Madrid para esa convocatoria, cuerpo y especialidad.
+    Los DNI aparecen enmascarados tal como se publican. Las fuentes no contienen notas individuales de los exámenes,
+    por lo que no se muestran calificaciones de prueba, solo baremo de méritos y puntuación final.</p>
 </div>
 
 <div id="tab-centros" style="display:none">
@@ -3174,8 +3223,7 @@ function opoValor(id) { var el = document.getElementById(id); return el ? el.val
 
 function opoParams(conPagina) {
   var p = new URLSearchParams();
-  [['proceso', 'opoFilterProceso'], ['cuerpo', 'opoFilterCuerpo'],
-   ['especialidad', 'opoFilterEsp'], ['acceso', 'opoFilterAcceso'],
+  [['proceso', 'opoFilterProceso'], ['especialidad', 'opoFilterEsp'],
    ['estado', 'opoFilterEstado'], ['sort', 'opoSort']].forEach(function(pair) {
     var v = opoValor(pair[1]);
     if (v) p.set(pair[0], v);
@@ -3184,7 +3232,7 @@ function opoParams(conPagina) {
   if (q) p.set('q', q);
   if (conPagina) {
     p.set('page', opoPage);
-    p.set('page_size', '50');
+    p.set('page_size', opoValor('opoPageSize') || '50');
   }
   return p;
 }
@@ -3199,13 +3247,14 @@ function opoOpciones(sel, items, placeholder, valueKey, labelKey) {
   (items || []).forEach(function(item) {
     var o = document.createElement('option');
     o.value = valueKey ? item[valueKey] : item;
-    o.textContent = labelKey ? item[labelKey] : item;
+    o.textContent = typeof labelKey === 'function' ? labelKey(item) :
+      (labelKey ? item[labelKey] : item);
     sel.appendChild(o);
   });
   if (Array.prototype.some.call(sel.options, function(o) { return o.value === actual; })) sel.value = actual;
 }
 
-function opoActualizarEsp() {
+function opoActualizarEsp(mantener) {
   var proc = opoValor('opoFilterProceso');
   var sel = document.getElementById('opoFilterEsp');
   if (!opoMeta) return;
@@ -3213,16 +3262,25 @@ function opoActualizarEsp() {
   if (proc) {
     items = opoMeta.especialidades[proc] || [];
   } else {
-    var vistos = {}, salida = [];
+    var agrupadas = {}, salida = [];
     Object.keys(opoMeta.especialidades).forEach(function(k) {
       opoMeta.especialidades[k].forEach(function(e) {
-        if (!vistos[e.nombre]) { vistos[e.nombre] = 1; salida.push(e); }
+        var item = agrupadas[e.nombre];
+        if (!item) {
+          item = agrupadas[e.nombre] = {nombre:e.nombre, total:0, plazas:0};
+          salida.push(item);
+        }
+        item.total += e.total || 0;
+        item.plazas += e.plazas || 0;
       });
     });
     salida.sort(function(a, b) { return a.nombre < b.nombre ? -1 : (a.nombre > b.nombre ? 1 : 0); });
     items = salida;
   }
-  opoOpciones(sel, items, 'Todas', 'nombre', 'nombre');
+  opoOpciones(sel, items, 'Todas', 'nombre', function(e) {
+    return e.nombre + ' · ' + opoNum(e.plazas || 0) + ' plazas · ' + opoNum(e.total || 0) + ' personas';
+  });
+  if (!mantener) sel.value = '';
 }
 
 function initOposiciones() {
@@ -3230,9 +3288,9 @@ function initOposiciones() {
     .then(function(r) { return r.json(); })
     .then(function(f) {
       opoMeta = f;
-      opoOpciones(document.getElementById('opoFilterProceso'), f.procesos, 'Todas', 'id', 'titulo');
-      opoOpciones(document.getElementById('opoFilterCuerpo'), f.cuerpos, 'Todos', 'label', 'label');
-      opoOpciones(document.getElementById('opoFilterAcceso'), f.accesos, 'Todos', 'label', 'label');
+      opoOpciones(document.getElementById('opoFilterProceso'), f.procesos, 'Todas', 'id', function(p) {
+        return p.titulo + ' · ' + opoNum(p.plazas || 0) + ' plazas · ' + opoNum(p.total || 0) + ' personas';
+      });
       opoOpciones(document.getElementById('opoFilterEstado'), f.estados, 'Todos', 'id', 'label');
       opoActualizarEsp();
       opoRefresh();
@@ -3245,86 +3303,118 @@ function initOposiciones() {
 
 function opoNum(v) { return Number(v || 0).toLocaleString('es-ES'); }
 
-function opoBadges(r) {
+function opoChips(r) {
   var b = [];
-  if (r.seleccionado === 1) b.push('<span class="opo-badge ok">Seleccionado</span>');
-  if (r.apto_practicas === 1) b.push('<span class="opo-badge info">Apto prácticas</span>');
-  if (r.nombrado === 1) b.push('<span class="opo-badge ok">Nombrado</span>');
-  if (r.admitido === 1 && r.seleccionado !== 1) b.push('<span class="opo-badge info">Admitido</span>');
-  if (r.admitido === 0) b.push('<span class="opo-badge bad">Excluido' + (r.motivo_exclusion ? ' ' + esc(r.motivo_exclusion) : '') + '</span>');
-  if (r.renuncia === 1) b.push('<span class="opo-badge warn">Renuncia</span>');
-  if (r.modificacion === 1) b.push('<span class="opo-badge warn">Modificado</span>');
-  return b.length ? b.join(' ') : '<span class="opo-badge info">Inscrito</span>';
+  if (r.seleccionado === 1) b.push('<span class="opo-chip si">Seleccionado</span>');
+  if (r.apto_practicas === 1) b.push('<span class="opo-chip si">Apto</span>');
+  if (r.nombrado === 1) b.push('<span class="opo-chip info">Nombrado</span>');
+  if (r.admitido === 1 && r.seleccionado !== 1) b.push('<span class="opo-chip info">Admitido</span>');
+  if (r.admitido === 0) b.push('<span class="opo-chip no">Excluido' + (r.motivo_exclusion ? ' ' + esc(r.motivo_exclusion) : '') + '</span>');
+  if (r.modificacion === 1) b.push('<span class="opo-chip warn">Modificado</span>');
+  return b.length ? b.join('') : '<span class="opo-chip info">—</span>';
 }
 
-function opoRender(rows, stats, plazas) {
-  var s = stats || {};
-  var resumen = (opoMeta && opoMeta.resumen) || {};
-  document.getElementById('opoStats').innerHTML = [
-    ['Registros', opoNum(s.total)],
-    ['Admitidos', opoNum(s.admitidos)],
-    ['Seleccionados', opoNum(s.seleccionados), s.tasas ? (s.tasas.seleccion + '% sobre admitidos') : ''],
-    ['Aptos en prácticas', opoNum(s.aptos)],
-    ['Plazas convocadas', opoNum(s.plazas)],
-    ['Documentos oficiales', opoNum(resumen.documentos)]
-  ].map(function(x) {
-    return '<div class="stat-card"><div class="label">' + x[0] + '</div><div class="value">' + x[1] + '</div>' +
-      (x[2] ? '<div style="font-size:.8rem;color:#6b7280">' + x[2] + '</div>' : '') + '</div>';
+function opoTarjeta(clase, etiqueta, numero, detalle) {
+  return '<div class="opo-card ' + clase + '"><div class="label">' + etiqueta + '</div>' +
+    '<div class="value">' + numero + '</div><div class="detalle">' + detalle + '</div></div>';
+}
+
+function opoMini(s, nombre) {
+  if (!s || !s.n) return '<div><span>' + nombre + '</span><b>—</b><span>sin datos</span></div>';
+  return '<div><span>' + nombre + ' · n=' + opoNum(s.n) + '</span><b>' + esc(s.media) + '</b>' +
+    '<span>media · mediana ' + esc(s.mediana) + ' · rango ' + esc(s.min) + '–' + esc(s.max) + '</span></div>';
+}
+
+function opoGrafico(titulo, datos, campo, etiqueta) {
+  if (!datos || !datos.length) return '';
+  var max = Math.max.apply(null, datos.map(function(d) { return d.total; }).concat([1]));
+  var filas = datos.map(function(d) {
+    var detalle = (d.plazas !== undefined ? opoNum(d.plazas) + ' plazas · ' : '') +
+      opoNum(d.seleccionados || 0) + ' seleccionados · ' + opoNum(d.aptos || 0) + ' aptos';
+    return '<div class="opo-barra-fila" title="' + esc(detalle) + '">' +
+      '<span class="nombre">' + esc(etiqueta(d[campo])) + '</span>' +
+      '<div class="opo-barra"><i style="width:' + (100 * d.total / max).toFixed(1) + '%"></i></div>' +
+      '<span class="valor">' + opoNum(d.total) + '</span></div>';
   }).join('');
+  return '<section class="opo-panel"><h2>' + titulo + '</h2>' + filas + '</section>';
+}
+
+function opoRender(rows, stats) {
+  var s = stats || {}, t = s.tasas || {};
+  document.getElementById('opoStats').innerHTML = [
+    opoTarjeta('', 'Registros en el filtro', opoNum(s.total), 'convocatoria + especialidad'),
+    opoTarjeta('naranja', 'Plazas convocadas', opoNum(s.plazas), 'reparto oficial por especialidad'),
+    opoTarjeta('azul', 'Admitidos (personas que se presentaron)', opoNum(s.admitidos), (t.baremo || 0) + '% con baremo publicado'),
+    opoTarjeta('rojo', 'Excluidos', opoNum(s.excluidos), (t.exclusion || 0) + '% del total'),
+    opoTarjeta('verde', 'Seleccionados', opoNum(s.seleccionados), (t.seleccion || 0) + '% de los admitidos'),
+    opoTarjeta('verde', 'Aptos en prácticas', opoNum(s.aptos), (t.aptitud || 0) + '% de los seleccionados'),
+    opoTarjeta('naranja', 'Nombrados', opoNum(s.nombrados), opoNum(s.renuncias) + ' renuncias · ' + opoNum(s.aplazamientos) + ' aplazamientos')
+  ].join('');
+
+  var labels = (opoMeta && opoMeta.procesos_labels) || {};
+  document.getElementById('opoGraficos').innerHTML =
+    '<section class="opo-panel"><h2>Estadísticas de puntuación</h2><div class="opo-mini">' +
+      opoMini(s.stats_puntuacion, 'Puntuación de seleccionados') +
+      opoMini(s.stats_baremo, 'Baremo de admitidos') +
+    '</div></section>' +
+    opoGrafico('Por convocatoria', s.por_convocatoria, 'proceso', function(x) { return labels[x] || x; }) +
+    opoGrafico('Especialidades con más aspirantes', s.por_especialidad, 'especialidad', function(x) { return x; }) +
+    opoGrafico('Cuerpos', s.por_cuerpo, 'cuerpo_nombre', function(x) { return x; }) +
+    opoGrafico('Vías de acceso', s.por_acceso, 'acceso', function(x) { return x; });
 
   var cols = [
-    ['nombre', 'Nombre'], ['proceso', 'Convocatoria'], ['_cuerpo_label', 'Cuerpo'],
-    ['especialidad', 'Especialidad'], ['acceso', 'Acceso'], ['dni', 'DNI'],
-    ['puntuacion', 'Puntuación'], ['orden', 'Orden']
+    ['proceso', 'Convocatoria'], ['dni', 'DNI'], ['nombre', 'Nombre'],
+    ['especialidad', 'Especialidad'], ['plazas', 'Plazas'], ['cuerpo_nombre', 'Cuerpo'],
+    ['acceso', 'Acceso'], ['baremo_total', 'Baremo'], ['puntuacion', 'Puntuación'],
+    ['orden', 'Orden']
   ];
   var h = '<table><thead><tr>' + cols.map(function(c) {
-    return '<th style="cursor:pointer" onclick="opoSetSort(\'' +
-      (c[0] === 'proceso' ? 'nombre' : c[0]) + '\')">' + c[1] + '</th>';
+    return '<th class="' + (['plazas', 'baremo_total', 'puntuacion'].indexOf(c[0]) >= 0 ? 'num' : '') +
+      '" style="cursor:pointer" onclick="opoSetSort(\'' +
+      (c[0] === 'nombre' || c[0] === 'proceso' ? 'nombre' : c[0]) + '\')">' + c[1] + '</th>';
   }).join('') + '<th>Estado</th></tr></thead><tbody>';
   if (!rows.length) {
-    h += '<tr><td colspan="9" class="empty">Sin resultados con estos filtros.</td></tr>';
+    h += '<tr><td colspan="11" class="empty">Sin resultados con estos filtros.</td></tr>';
   }
   rows.forEach(function(r) {
-    var procLabel = (opoMeta && opoMeta.procesos_labels && opoMeta.procesos_labels[r.proceso]) || r.proceso;
+    var procLabel = labels[r.proceso] || r.proceso;
     h += '<tr>' +
-      '<td><strong>' + esc(r.nombre) + '</strong>' + (r.nombre_sig && r.nombre_sig !== r.nombre ? '<br><span style="font-size:.75rem;color:#6b7280">' + esc(r.nombre_sig) + '</span>' : '') + '</td>' +
       '<td>' + esc(procLabel) + '</td>' +
-      '<td>' + esc(r._cuerpo_label || r.cuerpo_nombre) + '</td>' +
-      '<td>' + esc(r.especialidad) + '</td>' +
-      '<td>' + esc(r.acceso) + '</td>' +
       '<td>' + esc(r.dni) + '</td>' +
-      '<td>' + esc(r.puntuacion || '—') + '</td>' +
+      '<td title="' + esc(r.fuentes) + '"><strong>' + esc(r.nombre) + '</strong>' +
+        (r.nombre_sig && r.nombre_sig !== r.nombre ? '<br><span style="font-size:.72rem;color:#6b7280">' + esc(r.nombre_sig) + '</span>' : '') + '</td>' +
+      '<td>' + esc(r.especialidad) + '</td>' +
+      '<td class="num">' + esc(r.plazas) + '</td>' +
+      '<td>' + esc(r.cuerpo_nombre || r.cuerpo) + '</td>' +
+      '<td>' + esc(r.acceso) + '</td>' +
+      '<td class="num">' + esc(r.baremo_total || '—') + '</td>' +
+      '<td class="num">' + esc(r.puntuacion || '—') + '</td>' +
       '<td>' + esc(r.orden || '—') + '</td>' +
-      '<td>' + opoBadges(r) + '</td></tr>';
+      '<td>' + opoChips(r) + '</td></tr>';
   });
   h += '</tbody></table>';
   document.getElementById('opoTableWrap').innerHTML = h;
-
-  var pl = plazas || [];
-  var ph = '<details><summary>Reparto oficial de plazas (' + opoNum(pl.length) + ' líneas)</summary>' +
-    '<table style="margin-top:8px"><thead><tr><th>Convocatoria</th><th>Cuerpo</th><th>Especialidad</th><th>Plazas</th></tr></thead><tbody>' +
-    pl.slice(0, 20).map(function(p) {
-      return '<tr><td>' + esc(p.proceso) + '</td><td>' + esc(p.cuerpo) + '</td><td>' +
-        esc(p.especialidad) + '</td><td>' + p.plazas + '</td></tr>';
-    }).join('') + '</tbody></table>' + (pl.length > 20 ? '<p style="font-size:.78rem;color:#6b7280">Mostrando las 20 primeras líneas; exporta el CSV para verlas todas.</p>' : '') + '</details>';
-  document.getElementById('opoPlazasWrap').innerHTML = ph;
 }
 
 function opoRefresh() {
   document.getElementById('opoTableWrap').innerHTML = '<div class="loading">Cargando datos de oposiciones...</div>';
   Promise.all([
     fetch(opoUrl('/api/oposiciones/stats', false)).then(function(r) { return r.json(); }),
-    fetch(opoUrl('/api/oposiciones', true)).then(function(r) { return r.json(); }),
-    fetch(opoUrl('/api/oposiciones/plazas', false)).then(function(r) { return r.json(); })
+    fetch(opoUrl('/api/oposiciones', true)).then(function(r) { return r.json(); })
   ]).then(function(d) {
     var datos = d[1];
     opoPages = datos.paginas || 1;
     if (opoPage > opoPages) { opoPage = opoPages; return opoRefresh(); }
     document.getElementById('opoResultCount').textContent = opoNum(datos.total);
-    document.getElementById('opoPageInfo').textContent = opoPage + ' / ' + opoPages;
+    document.getElementById('opoPageInfo').textContent = 'Página ' + opoPage + ' de ' + opoPages;
     document.getElementById('opoPrevPage').disabled = opoPage <= 1;
     document.getElementById('opoNextPage').disabled = opoPage >= opoPages;
-    opoRender(datos.filas || [], d[0], d[2]);
+    var estado = document.getElementById('opoFilterEstado');
+    var texto = 'Filtro de estado: ' + (estado.selectedOptions[0] ? estado.selectedOptions[0].text : 'Todos');
+    var q = (document.getElementById('opoSearch').value || '').trim();
+    if (q) texto += ' · búsqueda: «' + q + '»';
+    document.getElementById('opoFiltrosActivos').textContent = texto;
+    opoRender(datos.filas || [], d[0]);
   }).catch(function(e) {
     console.error(e);
     document.getElementById('opoTableWrap').innerHTML = '<div class="empty">Error al cargar los datos.</div>';
@@ -3346,10 +3436,11 @@ function opoSetSort(clave) {
 }
 
 function opoReset() {
-  ['opoFilterProceso', 'opoFilterCuerpo', 'opoFilterAcceso', 'opoFilterEstado', 'opoSort'].forEach(function(id) {
+  ['opoFilterProceso', 'opoFilterEstado', 'opoSort'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el && el.options.length) el.value = el.options[0].value;
   });
+  document.getElementById('opoPageSize').value = '50';
   document.getElementById('opoSearch').value = '';
   opoActualizarEsp();
   opoPage = 1;
@@ -3369,7 +3460,7 @@ function opoExportar() {
     .catch(function(e) { console.error(e); alert('No se pudo exportar el CSV'); });
 }
 
-['opoFilterProceso', 'opoFilterCuerpo', 'opoFilterAcceso', 'opoFilterEstado', 'opoSort'].forEach(function(id) {
+['opoFilterProceso', 'opoFilterEsp', 'opoFilterEstado', 'opoSort', 'opoPageSize'].forEach(function(id) {
   document.getElementById(id).addEventListener('change', function() {
     if (id === 'opoFilterProceso') opoActualizarEsp();
     opoPage = 1;
